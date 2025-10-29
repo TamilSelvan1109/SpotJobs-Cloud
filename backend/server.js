@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
-import connectCloudinary from "./config/cloudinary.js";
+
 import connectDB from "./config/db.js";
 import "./config/instrument.js";
 import companyRoutes from "./routes/companyRoutes.js";
@@ -15,7 +15,6 @@ const app = express();
 
 // Connect to Database
 await connectDB();
-await connectCloudinary();
 
 // Middlewares
 app.use(cors({

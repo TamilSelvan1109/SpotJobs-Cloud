@@ -88,7 +88,7 @@ export const AppContextProvider = (props) => {
       });
 
       if (!data.success) {
-        toast.error(data.message);
+        console.log(data.message);
       } else {
         setJobsApplied(data.applications);
       }

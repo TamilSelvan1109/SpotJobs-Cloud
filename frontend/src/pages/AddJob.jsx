@@ -14,6 +14,7 @@ const AddJob = () => {
   const [category, setCategory] = useState("Programming");
   const [level, setLevel] = useState("Beginner level");
   const [salary, setSalary] = useState("");
+  const [skills, setSkills] = useState("");
   const editorRef = useRef(null);
   const quillRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -30,9 +31,11 @@ const AddJob = () => {
         return;
       }
 
+      const skillsArray = skills.split(',').map(skill => skill.trim()).filter(skill => skill);
+      
       const { data } = await axios.post(
         `${backendUrl}/api/company/post-job`,
-        { title, description, location, salary, level, category },
+        { title, description, location, salary, level, category, skills: skillsArray },
         { withCredentials: true }
       );
 
@@ -40,6 +43,7 @@ const AddJob = () => {
         toast.success(data.message);
         setTitle("");
         setSalary("");
+        setSkills("");
         quillRef.current.root.innerHTML = "";
       } else {
         toast.error(data.message);
@@ -144,17 +148,34 @@ const AddJob = () => {
             {/* Salary */}
             <div>
               <label className="block text-gray-700 font-semibold mb-2">
-                Salary (₹ per month)
+                Salary (₹LPA)
               </label>
               <input
-                type="number"
-                placeholder="e.g. 35000"
+                type="text"
+                placeholder="e.g. 6-8 LPA"
                 value={salary}
                 onChange={(e) => setSalary(e.target.value)}
                 min={0}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 outline-none"
               />
             </div>
+          </div>
+
+          {/* Skills */}
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">
+              Required Skills
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. React, Node.js, MongoDB (comma separated)"
+              value={skills}
+              onChange={(e) => setSkills(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-600 outline-none"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Enter skills separated by commas
+            </p>
           </div>
 
           {/* Description */}

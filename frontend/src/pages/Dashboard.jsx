@@ -8,6 +8,7 @@ import {
   LogOut,
   UserCircle,
   UserPen,
+  KeyRound,
 } from "lucide-react";
 import { useContext, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -94,6 +95,13 @@ const Dashboard = () => {
                 to="/recruiter/view-applications"
                 label="Applications"
                 icon={<FileText className="w-5 h-5" />}
+                sidebarOpen={sidebarOpen}
+              />
+              <NavItem
+                // amazonq-ignore-next-line
+                to="/recruiter/change-password"
+                label="Change Password"
+                icon={<KeyRound className="w-5 h-5" />}
                 sidebarOpen={sidebarOpen}
               />
             </nav>

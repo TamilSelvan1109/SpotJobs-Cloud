@@ -38,11 +38,10 @@ export const getCompanyDataById = async (req, res) => {
 
 // Post a new job
 export const postJob = async (req, res) => {
-  const { title, description, location, salary, level, category } = req.body;
+  const { title, description, location, salary, level, category, skills } = req.body;
   const userId = req.id;
   const user = await User.findById(userId);
   const company = await Company.findOne(user.profile.company);
-  console.log(company);
   try {
     const newJob = new Job({
       title,
@@ -53,6 +52,7 @@ export const postJob = async (req, res) => {
       date: Date.now(),
       level,
       category,
+      skills: skills || [],
     });
 
     await newJob.save();

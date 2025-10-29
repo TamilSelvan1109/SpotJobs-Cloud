@@ -9,6 +9,7 @@ import {
   loginUser,
   logoutUser,
   registerUser,
+  sendVerificationOTP,
   updateUserProfile,
   updateUserResume,
   forgotPassword,
@@ -22,8 +23,11 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Register a user
-router.post("/register", upload.single("image"), registerUser);
+// Send verification OTP
+router.post("/send-verification-otp", upload.single("image"), sendVerificationOTP);
+
+// Register a user after OTP verification
+router.post("/register", registerUser);
 
 // Login a user
 router.post("/login", loginUser);

@@ -39,21 +39,32 @@ const UserProfile = () => {
             <div className="px-6 sm:px-8 pb-8">
               <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16 sm:-mt-12">
                 {/* Avatar */}
-                <img
-                  src={userData.image}
-                  alt="User Avatar"
-                  className="w-32 h-32 rounded-2xl border-4 border-white object-cover shadow-lg"
-                />
+                <div className="relative">
+                  <img
+                    src={userData.image}
+                    alt="User Avatar"
+                    className="w-32 h-32 rounded-2xl border-4 border-white object-cover shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
+                    <div className="w-3 h-3 bg-white rounded-full"></div>
+                  </div>
+                </div>
 
                 {/* Name & Role */}
                 <div className="text-center sm:text-left mb-4 sm:mb-0 flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                  <h1 className="text-3xl font-bold text-white mb-10">
                     {userData.name}
                   </h1>
-                  <p className="text-lg text-gray-600">
+                  <p className="text-lg text-gray-600 ">
                     {userData.profile.role || userData.role}
                   </p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-500">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Active</span>
+                  </div>
                 </div>
+
+
               </div>
             </div>
           </div>
@@ -161,7 +172,7 @@ const UserProfile = () => {
                               }
                               className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
                             >
-                              View Resume <FileText className="w-4 h-4" />
+                              View Job <FileText className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -221,76 +232,28 @@ const UserProfile = () => {
                 </div>
               </div>
 
-              {/* Professional Links */}
+              {/* Resume & Links */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 border-l-8 border-l-blue-900 p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-blue-50 rounded-lg">
                     <FileText className="w-5 h-5 text-blue-600" />
                   </div>
                   <h2 className="text-xl font-bold text-gray-900">
-                    Professional Links
+                    Resume & Links
                   </h2>
                 </div>
 
                 <div className="space-y-4">
-                  {/* LinkedIn */}
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <Linkedin className="w-4 h-4 text-blue-700" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-500 mb-1">
-                        LinkedIn
-                      </p>
-                      {userData.profile.linkedin ? (
-                        <a
-                          href={userData.profile.linkedin}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Visit LinkedIn →
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-500">Not provided</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* GitHub */}
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <Github className="w-4 h-4 text-gray-700" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-500 mb-1">
-                        GitHub
-                      </p>
-                      {userData.profile.github ? (
-                        <a
-                          href={userData.profile.github}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          Visit GitHub →
-                        </a>
-                      ) : (
-                        <p className="text-sm text-gray-500">Not provided</p>
-                      )}
-                    </div>
-                  </div>
-
                   {/* Resume */}
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-50 rounded-lg">
-                      <FileText className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-gray-500 mb-1">
-                        Resume
-                      </p>
-                      {userData.profile.resume ? (
+                  {userData.profile.resume && (
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        <FileText className="w-4 h-4 text-gray-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500 mb-1">
+                          Resume
+                        </p>
                         <a
                           href={userData.profile.resume}
                           target="_blank"
@@ -299,11 +262,59 @@ const UserProfile = () => {
                         >
                           View Resume →
                         </a>
-                      ) : (
-                        <p className="text-sm text-gray-500">Not uploaded</p>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* LinkedIn */}
+                  {userData.profile.linkedin && (
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        <Linkedin className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500 mb-1">
+                          LinkedIn
+                        </p>
+                        <a
+                          href={userData.profile.linkedin}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Visit LinkedIn →
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GitHub */}
+                  {userData.profile.github && (
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-gray-50 rounded-lg">
+                        <Github className="w-4 h-4 text-gray-700" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-gray-500 mb-1">
+                          GitHub
+                        </p>
+                        <a
+                          href={userData.profile.github}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                        >
+                          Visit GitHub →
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {!userData.profile.resume && !userData.profile.linkedin && !userData.profile.github && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No resume or links added yet.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

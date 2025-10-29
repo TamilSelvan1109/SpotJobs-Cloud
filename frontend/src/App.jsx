@@ -12,6 +12,7 @@ import UserCard from "./components/UserCard";
 import AddJob from "./pages/AddJob";
 import Applications from "./pages/Applications";
 import ApplyJob from "./pages/ApplyJob";
+import ChangePassword from "./components/ChangePassword";
 import Dashboard from "./pages/Dashboard";
 import Home from "./pages/Home";
 import JobApplicants from "./pages/JobApplicants";
@@ -56,6 +57,7 @@ const App = () => {
             <Route path="profile" element={<UserProfile />} />
             <Route path="edit" element={<UpdateUser />} />
             <Route path="applications" element={<Applications />} />
+            <Route path="change-password" element={<ChangePassword />} />
           </Route>
         ) : (
           <Route path="/user/*" element={<Navigate to="/" />} />
@@ -70,6 +72,7 @@ const App = () => {
             <Route path="add-job" element={<AddJob />} />
             <Route path="view-applications" element={<ViewApplications />} />
             <Route path="job-applicants/:jobId" element={<JobApplicants />} />
+            <Route path="change-password" element={<ChangePassword />} />
           </Route>
         ) : (
           <Route path="/recruiter/*" element={<Navigate to="/" />} />

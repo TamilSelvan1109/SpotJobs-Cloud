@@ -1,5 +1,5 @@
 import axios from "axios";
-import { FileText, LogOut, UserCircle, ChevronLeft, ChevronRight, FileEdit } from "lucide-react";
+import { FileText, LogOut, UserCircle, ChevronLeft, ChevronRight, FileEdit, KeyRound } from "lucide-react";
 import { useContext, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -71,6 +71,12 @@ const UserDashboard = () => {
                 to="/user/applications"
                 label="Applications"
                 icon={<FileText className="w-5 h-5" />}
+                sidebarOpen={sidebarOpen}
+              />
+              <NavItem
+                to="/user/change-password"
+                label="Change Password"
+                icon={<KeyRound className="w-5 h-5" />}
                 sidebarOpen={sidebarOpen}
               />
             </nav>

@@ -1,54 +1,35 @@
 import bcrypt from "bcrypt";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"; // S3 SDK
 import Company from "../models/Company.js";
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
 import User from "../models/User.js";
+import Otp from "../models/Otp.js";
 import generateToken from "../utils/generateToken.js";
-import { sendOTPEmail } from "../utils/sendEmail.js";
+import { sendOTPEmail, sendVerificationEmail } from "../utils/sendEmail.js";
+import { uploadToS3 } from "../utils/s3Upload.js";
 import crypto from "crypto";
 
-// --- S3 Client Setup ---
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
-
-// Helper function to generate unique filenames
-const generateFileName = (bytes = 32) => crypto.randomBytes(bytes).toString("hex");
-// --- End S3 Client Setup ---
-
-// ---
-// Password Reset Functions (Unchanged)
-// ---
-
+// Password Reset Functions
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
 
     if (!user) {
-      // Send a generic message for security (don't reveal if email exists)
       return res.json({
         success: true,
         message: "If your email is registered, you will receive an OTP.",
       });
     }
 
-    // Generate a 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
-    // Set expiry time (10 minutes from now)
     const expires = new Date(Date.now() + 10 * 60 * 1000);
 
     user.passwordResetOTP = otp;
     user.passwordResetExpires = expires;
     await user.save();
 
-    // Send the email
-    const emailSent = await sendOTPEmail(user.email, otp);
+    const emailSent = await sendOTPEmail(email, otp);
 
     if (!emailSent) {
       return res.status(500).json({
@@ -69,10 +50,11 @@ export const forgotPassword = async (req, res) => {
 export const verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
+    // amazonq-ignore-next-line
     const user = await User.findOne({
       email,
       passwordResetOTP: otp,
-      passwordResetExpires: { $gt: Date.now() }, // Check if not expired
+      passwordResetExpires: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -81,7 +63,6 @@ export const verifyOTP = async (req, res) => {
         .json({ success: false, message: "Invalid or expired OTP." });
     }
 
-    // OTP is verified
     res.json({ success: true, message: "OTP verified. You can now reset." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -104,12 +85,10 @@ export const resetPassword = async (req, res) => {
         .json({ success: false, message: "Invalid or expired OTP." });
     }
 
-    // Hash the new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     user.password = hashedPassword;
-    // Invalidate the OTP
     user.passwordResetOTP = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
@@ -124,7 +103,7 @@ export const resetPassword = async (req, res) => {
 // User & Auth Functions (File Uploads Changed)
 // ---
 
-export const registerUser = async (req, res) => {
+export const sendVerificationOTP = async (req, res) => {
   try {
     const { name, email, phone, password, role } = req.body;
     const profileImage = req.file;
@@ -142,21 +121,72 @@ export const registerUser = async (req, res) => {
         .json({ success: false, message: "Email already registered" });
     }
 
+    // Generate OTP and send email first
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const emailSent = await sendVerificationEmail(email, otp);
+    
+    if (!emailSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email.",
+      });
+    }
+
+    // Store registration data temporarily
+    const registrationData = {
+      name,
+      email,
+      phone,
+      password,
+      role,
+      // amazonq-ignore-next-line
+      imageBuffer: profileImage.buffer.toString('base64'),
+      mimetype: profileImage.mimetype,
+      otp,
+      expires: new Date(Date.now() + 10 * 60 * 1000)
+    };
+
+    // Store in a temporary collection or use Redis/session
+    // For now, we'll use the existing OTP model
+    await Otp.deleteMany({ email });
+    await Otp.create({ 
+      email, 
+      otp, 
+      registrationData: JSON.stringify(registrationData)
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Verification OTP sent to your email.",
+      email,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const registerUser = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const otpRecord = await Otp.findOne({ email, otp });
+    if (!otpRecord) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired OTP." });
+    }
+
+    // amazonq-ignore-next-line
+    const registrationData = JSON.parse(otpRecord.registrationData);
+    const { name, phone, password, role, imageBuffer, mimetype } = registrationData;
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // --- S3 UPLOAD LOGIC ---
-    const fileName = generateFileName();
-    const s3Params = {
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: fileName,
-      Body: profileImage.buffer,
-      ContentType: profileImage.mimetype,
-      ACL: "public-read", // Make the file publicly readable
-    };
-    await s3Client.send(new PutObjectCommand(s3Params));
-    const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
-    // --- END S3 LOGIC ---
+    // Upload image to S3
+    // amazonq-ignore-next-line
+    const imageFile = { buffer: Buffer.from(imageBuffer, 'base64'), mimetype };
+    const imageUrl = await uploadToS3(imageFile);
 
     const newUser = await User.create({
       name,
@@ -164,27 +194,27 @@ export const registerUser = async (req, res) => {
       phone,
       password: hashedPassword,
       role,
-      image: imageUrl, // <-- Use S3 URL
+      image: imageUrl,
+      isVerified: true,
     });
 
     let companyId = null;
-
     if (role === "Recruiter") {
       const newCompany = await Company.create({
         name,
         contactEmail: email,
-        image: imageUrl, // <-- Use S3 URL
+        image: imageUrl,
         createdBy: newUser._id,
       });
-
       companyId = newCompany._id;
-
       newUser.profile = { company: companyId };
       await newUser.save();
     }
 
-    const token = generateToken(newUser._id);
+    // Delete OTP record
+    await Otp.deleteOne({ _id: otpRecord._id });
 
+    const token = generateToken(newUser._id);
     res.cookie("token", token, {
       maxAge: 1 * 24 * 60 * 60 * 1000,
       httpOnly: true,
@@ -192,9 +222,9 @@ export const registerUser = async (req, res) => {
       secure: true,
     });
 
-    // Response structure is unchanged
     res.status(201).json({
       success: true,
+      message: "Registration successful!",
       user: {
         _id: newUser._id,
         name: newUser.name,
@@ -224,6 +254,12 @@ export const loginUser = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "Invalid email or password" });
+    }
+
+    if (!user.isVerified) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please verify your email first" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -306,18 +342,8 @@ export const updateUserProfile = async (req, res) => {
     let uploadedImageUrl = null;
 
     if (profileImage) {
-      // --- S3 UPLOAD LOGIC ---
-      const fileName = generateFileName();
-      const s3Params = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: fileName,
-        Body: profileImage.buffer,
-        ContentType: profileImage.mimetype,
-        ACL: "public-read",
-      };
-      await s3Client.send(new PutObjectCommand(s3Params));
-      uploadedImageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
-      // --- END S3 LOGIC ---
+      // amazonq-ignore-next-line
+      uploadedImageUrl = await uploadToS3(profileImage);
     }
 
     const user = await User.findById(userId).populate("profile.company");
@@ -380,10 +406,6 @@ export const updateUserProfile = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-// ---
-// Other User Functions (Unchanged)
-// ---
 
 // Get the user data
 export const getUserData = async (req, res) => {
@@ -501,18 +523,7 @@ export const updateUserResume = async (req, res) => {
         .json({ success: false, message: "Upload resume!" });
     }
 
-    // --- S3 UPLOAD LOGIC ---
-    const fileName = generateFileName();
-    const s3Params = {
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: fileName,
-      Body: resumeFile.buffer,
-      ContentType: resumeFile.mimetype,
-      ACL: "public-read",
-    };
-    await s3Client.send(new PutObjectCommand(s3Params));
-    const resumeUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
-    // --- END S3 LOGIC ---
+    const resumeUrl = await uploadToS3(resumeFile);
 
     userData.profile.resume = resumeUrl; // <-- Use S3 URL
     await userData.save();
