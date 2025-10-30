@@ -1,13 +1,24 @@
 import moment from "moment";
-import { useContext, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Loading from "../components/Loading";
 import { AppContext } from "../context/AppContext";
 
 const Applications = () => {
   const navigate = useNavigate();
-  const { jobsApplied } = useContext(AppContext);
+  const { jobsApplied, fetchAppliedJobs } = useContext(AppContext);
   const [filter, setFilter] = useState("All");
+
+  // Poll for score updates every 10 seconds
+  useEffect(() => {
+    if (!jobsApplied) return;
+    
+    const interval = setInterval(() => {
+      fetchAppliedJobs();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [jobsApplied, fetchAppliedJobs]);
 
   // Filter and sort jobs
   const filteredJobs = useMemo(() => {

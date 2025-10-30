@@ -7,42 +7,59 @@ import Loading from "../components/Loading";
 import { AppContext } from "../context/AppContext";
 
 const ViewApplications = () => {
-  const { backendUrl, getAuthHeaders } = useContext(AppContext);
+  const { backendUrl, getAuthHeaders, fetchRecruiterApplications } = useContext(AppContext);
   const [applications, setApplications] = useState([]);
   const [filteredApps, setFilteredApps] = useState([]);
   const [jobFilter, setJobFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [scoreFilter, setScoreFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  
   // Fetch applications
-  useEffect(() => {
-    const fetchApplications = async () => {
-      setLoading(true);
-      try {
-        const { data } = await axios.get(
-          `${backendUrl}/api/company/applicants`,
-          {
-            headers: getAuthHeaders(),
-          }
-        );
-        if (data.success) {
-          setApplications(data.applications);
-          setFilteredApps(data.applications);
-          console.log(data.applications);
-        } else {
-          setApplications([]);
-          setFilteredApps([]);
+  const fetchApplications = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.get(
+        `${backendUrl}/api/company/applicants`,
+        {
+          headers: getAuthHeaders(),
         }
-      } catch (error) {
-        console.log(error);
+      );
+      if (data.success) {
+        setApplications(data.applications);
+        setFilteredApps(data.applications);
+        console.log(data.applications);
+      } else {
         setApplications([]);
         setFilteredApps([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.log(error);
+      setApplications([]);
+      setFilteredApps([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchApplications();
   }, [backendUrl]);
+
+  // Poll for score updates every 10 seconds
+  useEffect(() => {
+    if (applications.length === 0) return;
+    
+    const interval = setInterval(async () => {
+      const updatedApps = await fetchRecruiterApplications();
+      if (updatedApps.length > 0) {
+        setApplications(updatedApps);
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [applications, fetchRecruiterApplications]);
 
   // Apply filters
   useEffect(() => {
@@ -63,8 +80,22 @@ const ViewApplications = () => {
         (app) => app.status?.toLowerCase() === statusFilter.toLowerCase()
       );
 
+    if (scoreFilter) {
+      filtered = filtered.filter((app) => {
+        if (app.score === null || app.score === undefined) return false;
+        const score = app.score;
+        switch (scoreFilter) {
+          case "80+": return score >= 80;
+          case "60-79": return score >= 60 && score < 80;
+          case "40-59": return score >= 40 && score < 60;
+          case "<40": return score < 40;
+          default: return true;
+        }
+      });
+    }
+
     setFilteredApps(filtered);
-  }, [jobFilter, locationFilter, statusFilter, applications]);
+  }, [jobFilter, locationFilter, statusFilter, scoreFilter, applications]);
 
   // Update status
   const handleStatusChange = async (appId, newStatus) => {
@@ -106,7 +137,7 @@ const ViewApplications = () => {
         </h1>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Job Filter */}
           <div className="flex items-center gap-2 bg-white shadow-sm px-3 py-2 rounded-lg border">
             <Briefcase size={18} className="text-gray-500" />
@@ -143,6 +174,22 @@ const ViewApplications = () => {
               <option value="Pending">Pending</option>
               <option value="Shortlisted">Shortlisted</option>
               <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+
+          {/* Score Filter */}
+          <div className="flex items-center gap-2 bg-white shadow-sm px-3 py-2 rounded-lg border">
+            <div className="w-4 h-4 rounded-full bg-gradient-to-r from-green-400 to-red-400 flex-shrink-0"></div>
+            <select
+              value={scoreFilter}
+              onChange={(e) => setScoreFilter(e.target.value)}
+              className="outline-none text-sm w-full bg-transparent"
+            >
+              <option value="">All Scores</option>
+              <option value="80+">80% and above</option>
+              <option value="60-79">60% - 79%</option>
+              <option value="40-59">40% - 59%</option>
+              <option value="<40">Below 40%</option>
             </select>
           </div>
         </div>

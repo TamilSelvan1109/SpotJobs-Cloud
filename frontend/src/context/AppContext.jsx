@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
-  const backendUrl = "http://localhost:5000"
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [searchFilter, setSearchFilter] = useState({
     title: "",
@@ -24,7 +24,7 @@ export const AppContextProvider = (props) => {
 
   // Get auth headers with token from localStorage
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
   // Fetch all jobs
@@ -60,7 +60,7 @@ export const AppContextProvider = (props) => {
       }
     } catch (error) {
       if (error.response?.status === 401) {
-        localStorage.removeItem('token');
+        localStorage.removeItem("token");
         setUserData(null);
         setCompanyData(null);
         console.log("User not authorized");
@@ -104,6 +104,27 @@ export const AppContextProvider = (props) => {
     }
   };
 
+  // Update individual application score
+  const updateApplicationScore = (applicationId, score) => {
+    setJobsApplied(prev => 
+      prev.map(job => 
+        job._id === applicationId ? { ...job, score } : job
+      )
+    );
+  };
+
+  // Fetch recruiter applications
+  const fetchRecruiterApplications = async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/company/applicants`, {
+        headers: getAuthHeaders(),
+      });
+      return data.success ? data.applications : [];
+    } catch (error) {
+      console.error('Error fetching recruiter applications:', error);
+      return [];
+    }
+  };
 
   // Initialize on mount
   useEffect(() => {
@@ -111,11 +132,11 @@ export const AppContextProvider = (props) => {
       try {
         await fetchJobs();
         // Only fetch user data if token exists
-        if (localStorage.getItem('token')) {
+        if (localStorage.getItem("token")) {
           await fetchUserData();
         }
       } catch (error) {
-        console.error('Initialization error:', error);
+        console.error("Initialization error:", error);
       } finally {
         setIsLoading(false);
       }
@@ -162,6 +183,8 @@ export const AppContextProvider = (props) => {
     fetchCompanyData,
     fetchJobs,
     fetchAppliedJobs,
+    fetchRecruiterApplications,
+    updateApplicationScore,
     getAuthHeaders,
   };
 
