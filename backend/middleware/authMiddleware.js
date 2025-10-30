@@ -3,7 +3,12 @@ import User from "../models/User.js";
 
 export const isAuthenticated = async (req, res, next) => {
   
-  const { token } = req.cookies;
+  let token = req.cookies.token;
+  
+  // Fallback to Authorization header if cookie not found
+  if (!token && req.headers.authorization) {
+    token = req.headers.authorization.split(' ')[1]; // Bearer token
+  }
 
   if (!token) {
     return res.status(401).json({ success: false, message: "Not authorized, Login Again" });
@@ -25,6 +30,7 @@ export const isAuthenticated = async (req, res, next) => {
     req.id = user._id;
     next();
   } catch (error) {
+    console.log('Auth middleware error:', error.message);
     res.status(401).json({ success: false, message:"Token is invalid or expired, Login Again" });
   }
 };
