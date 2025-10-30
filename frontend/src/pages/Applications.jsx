@@ -15,7 +15,7 @@ const Applications = () => {
     
     const interval = setInterval(() => {
       fetchAppliedJobs();
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [jobsApplied, fetchAppliedJobs]);

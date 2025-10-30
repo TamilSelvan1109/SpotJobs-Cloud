@@ -503,80 +503,10 @@ export const applyForJob = async (req, res) => {
 
       const result = await lambdaClient.send(command);
       
-      // Parse Lambda response for detailed logging
-      let lambdaResponse = null;
-      if (result.Payload) {
-        try {
-          const payloadStr = Buffer.from(result.Payload).toString();
-          lambdaResponse = JSON.parse(payloadStr);
-          
-          if (lambdaResponse.success && lambdaResponse.details) {
-            // Log comprehensive processing information
-            if (lambdaResponse.processingInfo) {
-              const { textract, scoring } = lambdaResponse.processingInfo;
-              
-              console.log(' Resume Processing Results:', {
-                hasResume: textract.hasResume,
-                textExtracted: textract.textExtracted,
-                textLength: `${textract.textLength} characters`,
-                source: textract.source,
-                preview: textract.preview.substring(0, 100) + '...'
-              });
-              
-              console.log('Scoring Input Analysis:', {
-                requiredSkills: scoring.totalRequiredSkills,
-                userSkills: scoring.totalUserSkills,
-                jobLevel: scoring.jobLevel,
-                jobTitle: scoring.jobTitle,
-                hasJobDescription: scoring.hasJobDescription,
-                timestamp: scoring.processingTimestamp
-              });
-              
-              if (textract.textExtracted) {
-                console.log('PDF successfully processed by Textract');
-              } else {
-                console.log('No PDF processed - using bio/profile data only');
-              }
-            }
-            
-            console.log('Lambda Scoring Results:', {
-              applicationId: lambdaResponse.applicationId,
-              finalScore: `${lambdaResponse.score}%`,
-              breakdown: {
-                skillsMatch: `${lambdaResponse.details.skillsMatch.score}% (${lambdaResponse.details.skillsMatch.matched}/${lambdaResponse.details.skillsMatch.total} skills) - Weight: ${lambdaResponse.details.skillsMatch.weight}`,
-                descriptionMatch: `${lambdaResponse.details.descriptionMatch.score}% (${lambdaResponse.details.descriptionMatch.keywordMatches} keywords) - Weight: ${lambdaResponse.details.descriptionMatch.weight}`,
-                experienceMatch: `${lambdaResponse.details.experienceMatch.score}% (${lambdaResponse.details.experienceMatch.candidateLevel} vs ${lambdaResponse.details.experienceMatch.requiredLevel}) - Weight: ${lambdaResponse.details.experienceMatch.weight}`,
-                roleMatch: `${lambdaResponse.details.roleMatch.score}% (${lambdaResponse.details.roleMatch.similarity} similarity) - Weight: ${lambdaResponse.details.roleMatch.weight}`,
-                qualificationMatch: `${lambdaResponse.details.qualificationMatch.score}% (${lambdaResponse.details.qualificationMatch.found} found) - Weight: ${lambdaResponse.details.qualificationMatch.weight}`
-              },
-              matchedSkills: lambdaResponse.details.skillsMatch.matchedSkills,
-              recommendation: lambdaResponse.details.recommendation
-            });
-          } else if (lambdaResponse && !lambdaResponse.success) {
-            // Log Lambda errors with details
-            console.log('Lambda Processing Error:', {
-              applicationId: lambdaResponse.applicationId,
-              errorMessage: lambdaResponse.message
-            });
-            
-            if (lambdaResponse.errorDetails) {
-              console.log('Error Details:', {
-                errorType: lambdaResponse.errorDetails.errorType,
-                timestamp: lambdaResponse.errorDetails.timestamp,
-                stack: lambdaResponse.errorDetails.errorStack?.substring(0, 200) + '...'
-              });
-            }
-          } else {
-            console.log(' Unexpected Lambda response:', lambdaResponse);
-          }
-        } catch (parseError) {
-          console.log('Failed to parse Lambda response:', Buffer.from(result.Payload).toString());
-        }
-      }
-      
-      console.log('Lambda invoked successfully:', {
+      console.log('🚀 Lambda invoked successfully:', {
         statusCode: result.StatusCode,
-        hasPayload: !!result.Payload
+        applicationId: application._id.toString(),
+        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring'
       });
     } catch (lambdaError) {
       console.error('Lambda invocation error:', lambdaError);
