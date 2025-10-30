@@ -506,8 +506,14 @@ export const applyForJob = async (req, res) => {
       console.log('🚀 Lambda invoked successfully:', {
         statusCode: result.StatusCode,
         applicationId: application._id.toString(),
-        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring'
+        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
+        payload: JSON.stringify(lambdaPayload).substring(0, 200) + '...'
       });
+      
+      // Wait a moment to see if Lambda responds
+      setTimeout(() => {
+        console.log('⏰ Waiting for Lambda callback...');
+      }, 2000);
     } catch (lambdaError) {
       console.error('Lambda invocation error:', lambdaError);
       // Don't fail the application if Lambda fails

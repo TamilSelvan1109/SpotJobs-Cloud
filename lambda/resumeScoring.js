@@ -8,12 +8,23 @@ const textract = new TextractClient({
 });
 
 exports.handler = async (event) => {
+    console.log('🚀 Lambda function started');
+    console.log('📥 Event received:', JSON.stringify(event, null, 2));
     
     try {
         const { 
             jobTitle, jobDescription, jobLocation, jobCategory, jobLevel, jobSalary, requiredSkills,
             userSkills, userBio, userRole, resumeUrl, applicationId, backendUrl 
         } = JSON.parse(event.body);
+        
+        console.log('📋 Parsed payload:', {
+            applicationId,
+            backendUrl,
+            hasJobTitle: !!jobTitle,
+            hasRequiredSkills: !!requiredSkills,
+            hasUserSkills: !!userSkills,
+            hasResumeUrl: !!resumeUrl
+        });
         
 
         
@@ -96,12 +107,20 @@ exports.handler = async (event) => {
         };
         
         // Send response to backend
-        await axios.post(`${backendUrl}/api/users/update-application-score`, {
+        console.log('📤 Sending score to backend:', {
+            url: `${backendUrl}/api/users/update-application-score`,
+            applicationId,
+            score
+        });
+        
+        const backendResponse = await axios.post(`${backendUrl}/api/users/update-application-score`, {
             applicationId,
             score,
             details: scoringDetails,
             processingInfo
         });
+        
+        console.log('✅ Backend response:', backendResponse.data);
         
         return {
             statusCode: 200,
@@ -115,6 +134,8 @@ exports.handler = async (event) => {
             })
         };
     } catch (error) {
+        console.error('❌ Lambda error:', error);
+        
         // Capture detailed error information for backend logging
         const errorDetails = {
             errorType: error.name || 'UnknownError',
