@@ -469,11 +469,17 @@ export const applyForJob = async (req, res) => {
     // Trigger Lambda function for resume scoring
     try {
       const lambdaPayload = {
+        jobTitle: jobData.title,
         jobDescription: jobData.description,
+        jobLocation: jobData.location,
+        jobCategory: jobData.category,
+        jobLevel: jobData.level,
+        jobSalary: jobData.salary,
         requiredSkills: jobData.skills || [],
-        userSkills: userData.profile.skills || [],
-        userBio: userData.profile.bio || '',
-        resumeUrl: userData.profile.resume || '',
+        userSkills: userData.profile?.skills || [],
+        userBio: userData.profile?.bio || '',
+        userRole: userData.profile?.role || '',
+        resumeUrl: userData.profile?.resume || '',
         applicationId: application._id.toString(),
         backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
       };
@@ -652,9 +658,37 @@ export const updateUserResume = async (req, res) => {
 // Update application score from Lambda
 export const updateApplicationScore = async (req, res) => {
   try {
-    const { applicationId, score } = req.body;
+    const { applicationId, score, error, errorDetails, details, processingInfo } = req.body;
     
-    console.log('Lambda callback received:', { applicationId, score });
+    if (error) {
+      console.error('❌ Lambda scoring error received:', {
+        applicationId,
+        errorType: errorDetails?.errorType,
+        errorMessage: errorDetails?.errorMessage,
+        timestamp: errorDetails?.timestamp
+      });
+      return res.json({ success: false, message: "Scoring failed", errorDetails });
+    }
+    
+    console.log('✅ Lambda scoring success:', { applicationId, score });
+    
+    if (processingInfo?.textract?.extractedText) {
+      console.log('📄 Textract Extracted Text:', {
+        source: processingInfo.textract.source,
+        textLength: processingInfo.textract.textLength,
+        extractedContent: processingInfo.textract.extractedText.substring(0, 500) + '...'
+      });
+    }
+    
+    if (details) {
+      console.log('📊 Detailed scoring breakdown:', {
+        skillsMatch: `${details.skillsMatch.score}% (${details.skillsMatch.matched}/${details.skillsMatch.total})`,
+        descriptionMatch: `${details.descriptionMatch.score}%`,
+        experienceMatch: `${details.experienceMatch.score}%`,
+        roleMatch: `${details.roleMatch.score}%`,
+        recommendation: details.recommendation
+      });
+    }
     
     const application = await JobApplication.findByIdAndUpdate(
       applicationId,
@@ -663,14 +697,14 @@ export const updateApplicationScore = async (req, res) => {
     );
     
     if (!application) {
-      console.log('Application not found:', applicationId);
+      console.log('❌ Application not found:', applicationId);
       return res.json({ success: false, message: "Application not found" });
     }
     
-    console.log('Score updated successfully:', { applicationId, score });
+    console.log('✅ Score updated in database:', { applicationId, score });
     res.json({ success: true, message: "Score updated successfully" });
   } catch (error) {
-    console.error('Score update error:', error);
+    console.error('❌ Score update error:', error);
     res.json({ success: false, message: error.message });
   }
 };

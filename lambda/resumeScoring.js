@@ -67,22 +67,7 @@ exports.handler = async (event) => {
         
 
         
-        // Update JobApplication with score
-        const response = await axios.patch(`${backendUrl}/api/users/update-application-score`, {
-            applicationId,
-            score
-        }, {
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
 
-        
-        if (!response.data.success) {
-            throw new Error(`Backend update failed: ${response.data.message}`);
-        }
         
         // Get detailed scoring breakdown for controller logging
         const scoringDetails = getDetailedScoring({
@@ -98,7 +83,7 @@ exports.handler = async (event) => {
                 textExtracted: resumeText !== (userBio || ''),
                 textLength: resumeText.length,
                 source: resumeUrl ? 'Textract + Bio' : 'Bio only',
-                preview: resumeText.substring(0, 200)
+                extractedText: resumeText // Send full extracted text to backend
             },
             scoring: {
                 totalRequiredSkills: requiredSkills?.length || 0,
@@ -109,6 +94,14 @@ exports.handler = async (event) => {
                 processingTimestamp: new Date().toISOString()
             }
         };
+        
+        // Send response to backend
+        await axios.post(`${backendUrl}/api/users/update-application-score`, {
+            applicationId,
+            score,
+            details: scoringDetails,
+            processingInfo
+        });
         
         return {
             statusCode: 200,
@@ -130,6 +123,20 @@ exports.handler = async (event) => {
             timestamp: new Date().toISOString(),
             applicationId: applicationId || 'unknown'
         };
+        
+        // Send error to same backend route
+        try {
+            const { backendUrl } = JSON.parse(event.body);
+            if (backendUrl) {
+                await axios.post(`${backendUrl}/api/users/update-application-score`, {
+                    applicationId: applicationId || 'unknown',
+                    error: true,
+                    errorDetails
+                });
+            }
+        } catch (notificationError) {
+            console.log('Failed to notify backend of error:', notificationError.message);
+        }
         
         return {
             statusCode: 500,
