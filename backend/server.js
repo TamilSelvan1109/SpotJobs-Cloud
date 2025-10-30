@@ -19,6 +19,8 @@ await connectDB();
 app.use(cors({
   origin: ["http://localhost:5173", "https://lambda.amazonaws.com"],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 app.use(express.json());
 app.use(cookieParser());

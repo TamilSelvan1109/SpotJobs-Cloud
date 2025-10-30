@@ -228,7 +228,7 @@ export const registerUser = async (req, res) => {
       maxAge: 1 * 24 * 60 * 60 * 1000,
       httpOnly: true,
       sameSite: "none",
-      secure: true,
+      secure: false,
     });
 
     res.status(201).json({
@@ -291,7 +291,7 @@ export const loginUser = async (req, res) => {
         maxAge: 1 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         sameSite: "none",
-        secure: true,
+        secure: false,
       })
       .json({
         success: true,
@@ -319,7 +319,7 @@ export const logoutUser = async (req, res) => {
         httpOnly: true,
         path: "/",
         sameSite: "none",
-        secure: true,
+        secure: false,
       })
       .json({ success: true, message: "Logged out successfully" });
   } catch (error) {
