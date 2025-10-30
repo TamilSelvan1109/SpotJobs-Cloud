@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node";
 import cors from "cors";
 import "dotenv/config";
 import express from "express";
@@ -36,6 +35,5 @@ app.use("/api/jobs", jobRoutes);
 
 //Port
 const PORT = process.env.PORT || 5000;
-Sentry.setupExpressErrorHandler(app);
 
 app.listen(5000, "0.0.0.0", () => console.log("Server running..."));

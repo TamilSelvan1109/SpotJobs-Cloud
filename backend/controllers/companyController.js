@@ -97,6 +97,7 @@ export const getCompanyJobApplicants = async (req, res) => {
       resume: application.userId.profile.resume,
       date: application.date,
       status: application.status || "Pending",
+      score: application.score,
     }));
 
     return res.json({

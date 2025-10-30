@@ -15,7 +15,7 @@ const LoginUser = ({ onClose, switchToRegister }) => {
   const [role, setRole] = useState("User");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  const { backendUrl, setUserData } = useContext(AppContext);
+  const { backendUrl, setUserData ,fetchUserData, fetchCompanyData} = useContext(AppContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +27,8 @@ const LoginUser = ({ onClose, switchToRegister }) => {
         if (data.success) {
           toast.success(data.message);
           setUserData(data.user);
+          await fetchUserData();
+          if (data.user.role === "Recruiter") await fetchCompanyData();
           onClose();
         } else toast.error(data.message);
       }

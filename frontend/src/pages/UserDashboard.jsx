@@ -1,5 +1,13 @@
 import axios from "axios";
-import { FileText, LogOut, UserCircle, ChevronLeft, ChevronRight, FileEdit, KeyRound } from "lucide-react";
+import {
+  FileText,
+  LogOut,
+  UserCircle,
+  ChevronLeft,
+  ChevronRight,
+  FileEdit,
+  KeyRound,
+} from "lucide-react";
 import { useContext, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -7,7 +15,8 @@ import Navbar from "../components/Navbar";
 import { AppContext } from "../context/AppContext";
 
 const UserDashboard = () => {
-  const { userData, setUserData, backendUrl, fetchUserData } = useContext(AppContext);
+  const { userData, setUserData, backendUrl, fetchUserData } =
+    useContext(AppContext);
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -22,7 +31,7 @@ const UserDashboard = () => {
 
       toast.success("Logged out successfully");
       setUserData(null);
-      await fetchUserData();
+      setCompanyData(null);
       navigate("/");
     } catch (error) {
       toast.error(error.message);

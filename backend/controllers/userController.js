@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import Company from "../models/Company.js";
 import Job from "../models/Job.js";
 import JobApplication from "../models/JobApplication.js";
@@ -8,6 +9,14 @@ import generateToken from "../utils/generateToken.js";
 import { sendOTPEmail, sendVerificationEmail } from "../utils/sendEmail.js";
 import { uploadToS3 } from "../utils/s3Upload.js";
 import crypto from "crypto";
+
+const lambdaClient = new LambdaClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
 // Password Reset Functions
 export const forgotPassword = async (req, res) => {
@@ -461,12 +470,50 @@ export const applyForJob = async (req, res) => {
       return res.json({ success: false, message: "Job Not Found" });
     }
 
-    await JobApplication.create({
+    const userData = await User.findById(userId);
+    if (!userData) {
+      return res.json({ success: false, message: "User Not Found" });
+    }
+
+    const application = await JobApplication.create({
       companyId: jobData.companyId,
       userId,
       jobId,
       date: Date.now(),
     });
+
+    // Trigger Lambda function for resume scoring
+    try {
+      const lambdaPayload = {
+        jobDescription: jobData.description,
+        requiredSkills: jobData.skills || [],
+        userSkills: userData.profile.skills || [],
+        userBio: userData.profile.bio || '',
+        resumeUrl: userData.profile.resume || '',
+        applicationId: application._id.toString(),
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
+      };
+
+      console.log('🚀 Triggering Lambda with payload:', {
+        applicationId: application._id.toString(),
+        requiredSkills: jobData.skills,
+        userSkills: userData.profile.skills,
+        hasResume: !!userData.profile.resume,
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
+      });
+
+      const command = new InvokeCommand({
+        FunctionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
+        Payload: JSON.stringify({ body: JSON.stringify(lambdaPayload) }),
+        InvocationType: 'Event' // Async invocation
+      });
+
+      const result = await lambdaClient.send(command);
+      console.log('✅ Lambda invoked successfully:', result.StatusCode);
+    } catch (lambdaError) {
+      console.error('❌ Lambda invocation error:', lambdaError);
+      // Don't fail the application if Lambda fails
+    }
 
     res.json({ success: true, message: "Applied Successfully" });
   } catch (error) {
@@ -498,6 +545,7 @@ export const getUserJobApplications = async (req, res) => {
       location: application.jobId.location,
       date: application.date,
       status: application.status || "Pending",
+      score: application.score,
       jobId: application.jobId._id,
     }));
 
@@ -535,6 +583,32 @@ export const updateUserResume = async (req, res) => {
       user: userData,
     });
   } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Update application score from Lambda
+export const updateApplicationScore = async (req, res) => {
+  try {
+    const { applicationId, score } = req.body;
+    
+    console.log('📊 Lambda callback received:', { applicationId, score });
+    
+    const application = await JobApplication.findByIdAndUpdate(
+      applicationId,
+      { score },
+      { new: true }
+    );
+    
+    if (!application) {
+      console.log('❌ Application not found:', applicationId);
+      return res.json({ success: false, message: "Application not found" });
+    }
+    
+    console.log('✅ Score updated successfully:', { applicationId, score });
+    res.json({ success: true, message: "Score updated successfully" });
+  } catch (error) {
+    console.error('❌ Score update error:', error);
     res.json({ success: false, message: error.message });
   }
 };

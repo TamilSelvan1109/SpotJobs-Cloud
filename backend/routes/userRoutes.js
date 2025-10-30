@@ -10,6 +10,7 @@ import {
   logoutUser,
   registerUser,
   sendVerificationOTP,
+  updateApplicationScore,
   updateUserProfile,
   updateUserResume,
   forgotPassword,
@@ -68,5 +69,8 @@ router.get("/applications", isAuthenticated, getUserJobApplications);
 
 // To check the job is already applied or not
 router.post("/check-applied", isAuthenticated, isApplied);
+
+// Update application score from Lambda
+router.patch("/update-application-score", updateApplicationScore);
 
 export default router;

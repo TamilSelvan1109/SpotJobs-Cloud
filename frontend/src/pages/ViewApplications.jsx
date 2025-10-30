@@ -152,13 +152,14 @@ const ViewApplications = () => {
           <table className="min-w-full table-fixed border-collapse">
             <thead className="bg-blue-900 text-white font-semibold">
               <tr>
-                <th className="px-6 py-3 text-left w-[18%]">Applicant</th>
-                <th className="px-6 py-3 text-left w-[18%]">Email</th>
-                <th className="px-6 py-3 text-left w-[18%]">Job Title</th>
-                <th className="px-6 py-3 text-left w-[14%]">Location</th>
-                <th className="px-6 py-3 text-left w-[14%]">Applied On</th>
+                <th className="px-6 py-3 text-left w-[16%]">Applicant</th>
+                <th className="px-6 py-3 text-left w-[16%]">Email</th>
+                <th className="px-6 py-3 text-left w-[16%]">Job Title</th>
+                <th className="px-6 py-3 text-left w-[12%]">Location</th>
+                <th className="px-6 py-3 text-left w-[12%]">Applied On</th>
+                <th className="px-6 py-3 text-center w-[8%]">Score</th>
                 <th className="px-6 py-3 text-left w-[10%]">Resume</th>
-                <th className="px-6 py-3 text-left w-[8%]">Status</th>
+                <th className="px-6 py-3 text-left w-[10%]">Status</th>
               </tr>
             </thead>
             <tbody
@@ -209,6 +210,24 @@ const ViewApplications = () => {
                         : "N/A"}
                     </td>
 
+                    {/* Score */}
+                    <td className="px-6 py-4 text-center">
+                      {app.score !== null && app.score !== undefined ? (
+                        <div className="flex items-center justify-center">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold ${
+                            app.score >= 80 ? 'bg-green-100 text-green-800' :
+                            app.score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                            app.score >= 40 ? 'bg-orange-100 text-orange-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {app.score}%
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Pending</span>
+                      )}
+                    </td>
+
                     {/* Resume */}
                     <td className="px-6 py-4">
                       {app.resume ? (
@@ -254,7 +273,7 @@ const ViewApplications = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="text-center py-28 text-gray-500">
+                  <td colSpan="8" className="text-center py-28 text-gray-500">
                     No applications found.
                   </td>
                 </tr>

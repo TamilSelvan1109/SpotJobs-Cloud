@@ -8,7 +8,7 @@ import { JobCategories, JobLocations } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 
 const AddJob = () => {
-  const { backendUrl } = useContext(AppContext);
+  const { backendUrl, fetchJobs } = useContext(AppContext);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("Chennai");
   const [category, setCategory] = useState("Programming");
@@ -45,6 +45,7 @@ const AddJob = () => {
         setSalary("");
         setSkills("");
         quillRef.current.root.innerHTML = "";
+        await fetchJobs();
       } else {
         toast.error(data.message);
       }

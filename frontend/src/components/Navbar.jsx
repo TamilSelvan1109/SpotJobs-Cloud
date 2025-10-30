@@ -14,7 +14,8 @@ const Navbar = () => {
     setUserData,
     backendUrl,
     showLogin,
-    fetchUserData
+    fetchUserData,
+    setCompanyData,
   } = useContext(AppContext);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -30,6 +31,7 @@ const Navbar = () => {
       if (!data.success) return toast.error(data.message);
       toast.success("Logged out successfully");
       setUserData(null);
+      setCompanyData(null);
       setDropdownOpen(false);
       await fetchUserData();
       navigate("/");
@@ -68,7 +70,7 @@ const Navbar = () => {
           {userData ? (
             <>
               <div className="hidden md:flex items-center gap-6 text-gray-700 font-medium">
-                <NavItem to="/">Home</NavItem>
+                <NavItem to="/">Jobs</NavItem>
 
                 {userData.role === "User" ? (
                   <>
@@ -95,9 +97,7 @@ const Navbar = () => {
                       alt="avatar"
                       className="w-9 h-9 rounded-full border-2 border-blue-800 object-cover"
                     />
-                    <span className="text-lfont-semibold">
-                      {userData.name}
-                    </span>
+                    <span className="text-lfont-semibold">{userData.name}</span>
                     <ChevronDown
                       className={`w-4 h-4 transition-transform duration-200 ${
                         dropdownOpen ? "rotate-180" : ""
@@ -159,7 +159,7 @@ const Navbar = () => {
           <div className="md:hidden border-t border-gray-200 py-4">
             <div className="flex flex-col gap-2">
               <NavItem to="/" onClick={() => setMobileMenu(false)}>
-                Home
+                Jobs
               </NavItem>
               {userData.role === "User" ? (
                 <>

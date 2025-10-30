@@ -9,6 +9,7 @@ const JobApplicationSchema = new mongoose.Schema({
   },
   jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job", required: true },
   status: { type: String, default: "Pending" },
+  score: { type: Number, default: null },
   date: { type: Number, required: true },
 });
 

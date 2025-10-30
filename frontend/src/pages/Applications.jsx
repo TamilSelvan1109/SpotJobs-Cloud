@@ -74,6 +74,7 @@ const Applications = () => {
                   Location
                 </th>
                 <th className="py-3 px-5 font-medium max-sm:hidden">Date</th>
+                <th className="py-3 px-5 font-medium text-center">Score</th>
                 <th className="py-3 px-5 font-medium text-center">Status</th>
                 <th className="py-3 px-5 font-medium text-center">
                   Job Detail
@@ -102,6 +103,22 @@ const Applications = () => {
                   </td>
                   <td className="py-3 px-5 text-gray-600 max-sm:hidden">
                     {moment(job.date).format("MMM DD, YYYY")}
+                  </td>
+                  <td className="py-3 px-5 text-center">
+                    {job.score !== null && job.score !== undefined ? (
+                      <div className="flex items-center justify-center">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold ${
+                          job.score >= 80 ? 'bg-green-100 text-green-800' :
+                          job.score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                          job.score >= 40 ? 'bg-orange-100 text-orange-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {job.score}%
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Pending</span>
+                    )}
                   </td>
                   <td className="py-3 px-5 text-center">
                     <span
