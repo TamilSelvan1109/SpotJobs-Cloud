@@ -515,7 +515,7 @@ export const applyForJob = async (req, res) => {
             if (lambdaResponse.processingInfo) {
               const { textract, scoring } = lambdaResponse.processingInfo;
               
-              console.log('📄 Resume Processing Results:', {
+              console.log(' Resume Processing Results:', {
                 hasResume: textract.hasResume,
                 textExtracted: textract.textExtracted,
                 textLength: `${textract.textLength} characters`,
@@ -523,7 +523,7 @@ export const applyForJob = async (req, res) => {
                 preview: textract.preview.substring(0, 100) + '...'
               });
               
-              console.log('📊 Scoring Input Analysis:', {
+              console.log('Scoring Input Analysis:', {
                 requiredSkills: scoring.totalRequiredSkills,
                 userSkills: scoring.totalUserSkills,
                 jobLevel: scoring.jobLevel,
@@ -533,13 +533,13 @@ export const applyForJob = async (req, res) => {
               });
               
               if (textract.textExtracted) {
-                console.log('✅ PDF successfully processed by Textract');
+                console.log('PDF successfully processed by Textract');
               } else {
-                console.log('⚠️ No PDF processed - using bio/profile data only');
+                console.log('No PDF processed - using bio/profile data only');
               }
             }
             
-            console.log('🎯 Lambda Scoring Results:', {
+            console.log('Lambda Scoring Results:', {
               applicationId: lambdaResponse.applicationId,
               finalScore: `${lambdaResponse.score}%`,
               breakdown: {
@@ -554,27 +554,27 @@ export const applyForJob = async (req, res) => {
             });
           } else if (lambdaResponse && !lambdaResponse.success) {
             // Log Lambda errors with details
-            console.log('❌ Lambda Processing Error:', {
+            console.log('Lambda Processing Error:', {
               applicationId: lambdaResponse.applicationId,
               errorMessage: lambdaResponse.message
             });
             
             if (lambdaResponse.errorDetails) {
-              console.log('🔍 Error Details:', {
+              console.log('Error Details:', {
                 errorType: lambdaResponse.errorDetails.errorType,
                 timestamp: lambdaResponse.errorDetails.timestamp,
                 stack: lambdaResponse.errorDetails.errorStack?.substring(0, 200) + '...'
               });
             }
           } else {
-            console.log('⚠️ Unexpected Lambda response:', lambdaResponse);
+            console.log(' Unexpected Lambda response:', lambdaResponse);
           }
         } catch (parseError) {
-          console.log('⚠️ Failed to parse Lambda response:', Buffer.from(result.Payload).toString());
+          console.log('Failed to parse Lambda response:', Buffer.from(result.Payload).toString());
         }
       }
       
-      console.log('✅ Lambda invoked successfully:', {
+      console.log('Lambda invoked successfully:', {
         statusCode: result.StatusCode,
         hasPayload: !!result.Payload
       });
