@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
 
 const UpdateRecruiter = () => {
-  const { userData, companyData, backendUrl, setUserData, fetchCompanyData } =
+  const { userData, companyData, backendUrl, setUserData, fetchCompanyData, getAuthHeaders } =
     useContext(AppContext);
 
   // UI states
@@ -67,7 +67,7 @@ const UpdateRecruiter = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/users/profile/update`,
         formData,
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (data.success) {

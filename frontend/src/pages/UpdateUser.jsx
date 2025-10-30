@@ -21,7 +21,7 @@ import { toast } from "react-toastify";
 import { AppContext } from "../context/AppContext";
 
 const UpdateUser = () => {
-  const { userData, backendUrl, setUserData } = useContext(AppContext);
+  const { userData, backendUrl, setUserData, getAuthHeaders } = useContext(AppContext);
 
   const [isEdit, setIsEdit] = useState(false);
 
@@ -64,7 +64,7 @@ const UpdateUser = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/users/profile/update`,
         formData,
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (data.success) {
@@ -92,7 +92,7 @@ const UpdateUser = () => {
       const { data } = await axios.patch(
         `${backendUrl}/api/users/profile/update-resume`,
         formData,
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (data.success) {

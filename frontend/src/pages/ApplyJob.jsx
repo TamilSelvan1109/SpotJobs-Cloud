@@ -15,7 +15,7 @@ import { Briefcase, MapPin, UserCheck, IndianRupee } from "lucide-react";
 const ApplyJob = () => {
   const { id } = useParams();
   const [jobData, setJobData] = useState(null);
-  const { jobs, backendUrl, userData, jobsApplied, fetchAppliedJobs } =
+  const { jobs, backendUrl, userData, jobsApplied, fetchAppliedJobs, getAuthHeaders } =
     useContext(AppContext);
   const [isAlreadyApplied, setIsAlreadyApplied] = useState(false);
 
@@ -52,7 +52,7 @@ const ApplyJob = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/users/apply`,
         { jobId: id },
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (!data.success) return toast.error(data.message);

@@ -224,16 +224,11 @@ export const registerUser = async (req, res) => {
     await Otp.deleteOne({ _id: otpRecord._id });
 
     const token = generateToken(newUser._id);
-    res.cookie("token", token, {
-      maxAge: 1 * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false,
-    });
 
     res.status(201).json({
       success: true,
       message: "Registration successful!",
+      token: token,
       user: {
         _id: newUser._id,
         name: newUser.name,
@@ -287,12 +282,6 @@ export const loginUser = async (req, res) => {
 
     return res
       .status(200)
-      .cookie("token", token, {
-        maxAge: 1 * 24 * 60 * 60 * 1000,
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false,
-      })
       .json({
         success: true,
         message: `Welcome back, ${user.name}!`,
@@ -316,12 +305,6 @@ export const logoutUser = async (req, res) => {
   try {
     res
       .status(200)
-      .clearCookie("token", {
-        httpOnly: true,
-        path: "/",
-        sameSite: "lax",
-        secure: false,
-      })
       .json({ success: true, message: "Logged out successfully" });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

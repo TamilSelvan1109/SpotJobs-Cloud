@@ -25,15 +25,13 @@ const Navbar = () => {
   // Logout
   const handleLogout = async () => {
     try {
-      const { data } = await axios.get(`${backendUrl}/api/users/logout`, {
-        withCredentials: true,
-      });
+      localStorage.removeItem('token');
+      const { data } = await axios.get(`${backendUrl}/api/users/logout`);
       if (!data.success) return toast.error(data.message);
       toast.success("Logged out successfully");
       setUserData(null);
       setCompanyData(null);
       setDropdownOpen(false);
-      await fetchUserData();
       navigate("/");
     } catch (err) {
       toast.error(err.message);

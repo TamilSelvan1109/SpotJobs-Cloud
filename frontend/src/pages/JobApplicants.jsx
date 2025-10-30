@@ -9,7 +9,7 @@ import { AppContext } from "../context/AppContext";
 const JobApplicants = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { backendUrl } = useContext(AppContext);
+  const { backendUrl, getAuthHeaders } = useContext(AppContext);
   const [applications, setApplications] = useState([]);
   const [filteredApps, setFilteredApps] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
@@ -22,7 +22,7 @@ const JobApplicants = () => {
       try {
         const { data } = await axios.get(
           `${backendUrl}/api/company/job-applicants/${jobId}`,
-          { withCredentials: true }
+          { headers: getAuthHeaders() }
         );
 
         if (data.success) {
@@ -62,7 +62,7 @@ const JobApplicants = () => {
       const { data } = await axios.put(
         `${backendUrl}/api/company/change-status`,
         { status: newStatus, id: appId },
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (data.success) {

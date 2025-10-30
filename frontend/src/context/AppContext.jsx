@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
-  const backendUrl = "http://65.0.97.168:5000"
+  const backendUrl = "http://localhost:5000"
 
   const [searchFilter, setSearchFilter] = useState({
     title: "",
@@ -21,6 +21,12 @@ export const AppContextProvider = (props) => {
   const [userApplications, setUserApplications] = useState([]);
   const [jobsApplied, setJobsApplied] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Get auth headers with token from localStorage
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
   // Fetch all jobs
   const fetchJobs = async () => {
     try {
@@ -36,11 +42,11 @@ export const AppContextProvider = (props) => {
     }
   };
 
-  // Fetch logged-in user data (from cookie)
+  // Fetch logged-in user data (from localStorage token)
   const fetchUserData = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/users/user`, {
-        withCredentials: true,
+        headers: getAuthHeaders(),
       });
 
       if (data.success) {
@@ -54,6 +60,7 @@ export const AppContextProvider = (props) => {
       }
     } catch (error) {
       if (error.response?.status === 401) {
+        localStorage.removeItem('token');
         setUserData(null);
         setCompanyData(null);
         console.log("User not authorized");
@@ -67,7 +74,7 @@ export const AppContextProvider = (props) => {
   const fetchCompanyData = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/company/company`, {
-        withCredentials: true,
+        headers: getAuthHeaders(),
       });
 
       if (data.success) {
@@ -84,7 +91,7 @@ export const AppContextProvider = (props) => {
   const fetchAppliedJobs = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/users/applications`, {
-        withCredentials: true,
+        headers: getAuthHeaders(),
       });
 
       if (!data.success) {
@@ -101,12 +108,20 @@ export const AppContextProvider = (props) => {
   // Initialize on mount
   useEffect(() => {
     const initialize = async () => {
-      await fetchJobs();
-      await fetchUserData();
-      setIsLoading(false);
+      try {
+        await fetchJobs();
+        // Only fetch user data if token exists
+        if (localStorage.getItem('token')) {
+          await fetchUserData();
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     initialize();
-  }, [backendUrl]);
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
@@ -147,6 +162,7 @@ export const AppContextProvider = (props) => {
     fetchCompanyData,
     fetchJobs,
     fetchAppliedJobs,
+    getAuthHeaders,
   };
 
   return (

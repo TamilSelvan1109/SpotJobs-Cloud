@@ -8,13 +8,13 @@ import { AppContext } from "../context/AppContext";
 
 const ManageJobs = () => {
   const navigate = useNavigate();
-  const { backendUrl, fetchJobs } = useContext(AppContext);
+  const { backendUrl, fetchJobs, getAuthHeaders } = useContext(AppContext);
   const [companyJobs, setCompanyJobs] = useState(false);
 
   const fetchCompanyJobs = async () => {
     try {
       const { data } = await axios.get(`${backendUrl}/api/company/list-jobs`, {
-        withCredentials: true,
+        headers: getAuthHeaders(),
       });
 
       if (data.success) {
@@ -32,7 +32,7 @@ const ManageJobs = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/company/change-visiblity`,
         { id },
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
       if (data.success) {
         toast.success(data.message);

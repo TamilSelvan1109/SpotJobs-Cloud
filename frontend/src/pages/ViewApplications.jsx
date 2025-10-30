@@ -7,7 +7,7 @@ import Loading from "../components/Loading";
 import { AppContext } from "../context/AppContext";
 
 const ViewApplications = () => {
-  const { backendUrl } = useContext(AppContext);
+  const { backendUrl, getAuthHeaders } = useContext(AppContext);
   const [applications, setApplications] = useState([]);
   const [filteredApps, setFilteredApps] = useState([]);
   const [jobFilter, setJobFilter] = useState("");
@@ -22,7 +22,7 @@ const ViewApplications = () => {
         const { data } = await axios.get(
           `${backendUrl}/api/company/applicants`,
           {
-            withCredentials: true,
+            headers: getAuthHeaders(),
           }
         );
         if (data.success) {
@@ -72,7 +72,7 @@ const ViewApplications = () => {
       const { data } = await axios.put(
         `${backendUrl}/api/company/change-status`,
         { id: appId, status: newStatus },
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
       if (data.success) {
         toast.success("Status updated successfully!");

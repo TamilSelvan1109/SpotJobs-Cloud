@@ -49,9 +49,7 @@ const RegisterUser = ({ onClose, switchToLogin }) => {
       setLoading(true);
       const fd = new FormData();
       Object.entries(formData).forEach(([k, v]) => fd.append(k, v));
-      const { data } = await axios.post(`${backendUrl}/api/users/send-verification-otp`, fd, {
-        withCredentials: true,
-      });
+      const { data } = await axios.post(`${backendUrl}/api/users/send-verification-otp`, fd);
       if (data.success) {
         toast.success(data.message);
         setFormStep("verify");
@@ -70,10 +68,10 @@ const RegisterUser = ({ onClose, switchToLogin }) => {
       setLoading(true);
       const { data } = await axios.post(
         `${backendUrl}/api/users/register`,
-        { email: formData.email, otp },
-        { withCredentials: true }
+        { email: formData.email, otp }
       );
       if (data.success) {
+        localStorage.setItem('token', data.token);
         toast.success(data.message);
         setUserData(data.user);
         onClose();

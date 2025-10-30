@@ -8,7 +8,7 @@ import { JobCategories, JobLocations } from "../assets/assets";
 import { AppContext } from "../context/AppContext";
 
 const AddJob = () => {
-  const { backendUrl, fetchJobs } = useContext(AppContext);
+  const { backendUrl, fetchJobs, getAuthHeaders } = useContext(AppContext);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("Chennai");
   const [category, setCategory] = useState("Programming");
@@ -36,7 +36,7 @@ const AddJob = () => {
       const { data } = await axios.post(
         `${backendUrl}/api/company/post-job`,
         { title, description, location, salary, level, category, skills: skillsArray },
-        { withCredentials: true }
+        { headers: getAuthHeaders() }
       );
 
       if (data.success) {

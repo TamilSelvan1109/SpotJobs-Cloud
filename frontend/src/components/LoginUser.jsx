@@ -15,7 +15,7 @@ const LoginUser = ({ onClose, switchToRegister }) => {
   const [role, setRole] = useState("User");
   const [formData, setFormData] = useState({ email: "", password: "" });
 
-  const { backendUrl, setUserData ,fetchUserData, fetchCompanyData} = useContext(AppContext);
+  const { backendUrl, setUserData, fetchUserData, fetchCompanyData } = useContext(AppContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,8 +23,9 @@ const LoginUser = ({ onClose, switchToRegister }) => {
       setLoading(true);
 
       if (formStep === "login") {
-        const { data } = await axios.post(`${backendUrl}/api/users/login`, { ...formData, role }, { withCredentials: true });
+        const { data } = await axios.post(`${backendUrl}/api/users/login`, { ...formData, role });
         if (data.success) {
+          localStorage.setItem('token', data.token);
           toast.success(data.message);
           setUserData(data.user);
           await fetchUserData();

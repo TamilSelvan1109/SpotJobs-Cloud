@@ -3,14 +3,21 @@ import User from "../models/User.js";
 
 export const isAuthenticated = async (req, res, next) => {
   
-  let token = req.cookies.token;
+  console.log(`🔐 Auth check for: ${req.method} ${req.originalUrl}`);
+  console.log('📧 Cookies:', req.cookies);
+  console.log('📋 Headers:', req.headers.authorization);
   
-  // Fallback to Authorization header if cookie not found
-  if (!token && req.headers.authorization) {
-    token = req.headers.authorization.split(' ')[1]; // Bearer token
+  let token;
+  
+  // Prioritize Authorization header over cookies
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  } else {
+    token = req.cookies.token;
   }
 
   if (!token) {
+    console.log(`❌ No token found for: ${req.method} ${req.originalUrl}`);
     return res.status(401).json({ success: false, message: "Not authorized, Login Again" });
   }
 
