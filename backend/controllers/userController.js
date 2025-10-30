@@ -494,7 +494,7 @@ export const applyForJob = async (req, res) => {
         backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
       };
 
-      console.log('🚀 Triggering Lambda with payload:', {
+      console.log('Triggering Lambda with payload:', {
         applicationId: application._id.toString(),
         requiredSkills: jobData.skills,
         userSkills: userData.profile.skills,
@@ -509,9 +509,9 @@ export const applyForJob = async (req, res) => {
       });
 
       const result = await lambdaClient.send(command);
-      console.log('✅ Lambda invoked successfully:', result.StatusCode);
+      console.log('Lambda invoked successfully:', result.StatusCode);
     } catch (lambdaError) {
-      console.error('❌ Lambda invocation error:', lambdaError);
+      console.error('Lambda invocation error:', lambdaError);
       // Don't fail the application if Lambda fails
     }
 
@@ -592,7 +592,7 @@ export const updateApplicationScore = async (req, res) => {
   try {
     const { applicationId, score } = req.body;
     
-    console.log('📊 Lambda callback received:', { applicationId, score });
+    console.log('Lambda callback received:', { applicationId, score });
     
     const application = await JobApplication.findByIdAndUpdate(
       applicationId,
@@ -601,14 +601,14 @@ export const updateApplicationScore = async (req, res) => {
     );
     
     if (!application) {
-      console.log('❌ Application not found:', applicationId);
+      console.log('Application not found:', applicationId);
       return res.json({ success: false, message: "Application not found" });
     }
     
-    console.log('✅ Score updated successfully:', { applicationId, score });
+    console.log('Score updated successfully:', { applicationId, score });
     res.json({ success: true, message: "Score updated successfully" });
   } catch (error) {
-    console.error('❌ Score update error:', error);
+    console.error('Score update error:', error);
     res.json({ success: false, message: error.message });
   }
 };

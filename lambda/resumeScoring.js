@@ -27,8 +27,10 @@ exports.handler = async (event) => {
         // Extract text from resume using Textract if resume URL is provided
         if (resumeUrl && resumeUrl.includes('.pdf')) {
             try {
-                const bucketName = resumeUrl.split('/')[3];
-                const key = resumeUrl.split('/').slice(4).join('/');
+                // Parse S3 URL more robustly
+                const url = new URL(resumeUrl);
+                const bucketName = url.hostname.split('.')[0]; // Extract bucket from hostname
+                const key = url.pathname.substring(1); // Remove leading slash
                 
                 const textractParams = {
                     Document: {
@@ -52,8 +54,9 @@ exports.handler = async (event) => {
                     resumeText = extractedText;
                 }
             } catch (textractError) {
-                console.log('Textract extraction failed:', textractError.message);
-                // Fallback to user skills and bio
+                console.log('⚠️ Textract extraction failed:', textractError.message);
+                console.log('📝 Falling back to user bio and profile data');
+                // Continue with userBio as resumeText
             }
         }
         
@@ -68,9 +71,18 @@ exports.handler = async (event) => {
         const response = await axios.patch(`${backendUrl}/api/users/update-application-score`, {
             applicationId,
             score
+        }, {
+            timeout: 10000, // 10 second timeout
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
         
         console.log('✅ Backend response:', response.data);
+        
+        if (!response.data.success) {
+            throw new Error(`Backend update failed: ${response.data.message}`);
+        }
         
         return {
             statusCode: 200,
