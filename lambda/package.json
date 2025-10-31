@@ -1,17 +1,13 @@
 {
-  "name": "lambda",
+  "name": "resume-scoring-lambda",
   "version": "1.0.0",
-  "description": "",
+  "description": "AWS Lambda function for resume scoring with Textract",
   "main": "resumeScoring.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "@aws-sdk/client-textract": "^3.920.0",
-    "axios": "^1.13.1"
+    "@aws-sdk/client-textract": "^3.0.0",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

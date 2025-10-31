@@ -38,29 +38,52 @@ exports.handler = async (event) => {
         let textractUsed = false;
         
         // Extract text from resume using Textract if PDF URL provided
-        if (resumeUrl && (resumeUrl.includes('.pdf') || resumeUrl.includes('.PDF'))) {
+        const isS3Url = resumeUrl && resumeUrl.includes('amazonaws.com');
+        const hasPdfExtension = resumeUrl && (resumeUrl.includes('.pdf') || resumeUrl.includes('.PDF'));
+        const shouldProcessWithTextract = resumeUrl && (isS3Url || hasPdfExtension);
+        
+        console.log('🔍 Checking resume URL for processing:', { 
+            resumeUrl, 
+            isS3Url, 
+            hasPdfExtension, 
+            shouldProcessWithTextract 
+        });
+        
+        if (shouldProcessWithTextract) {
             try {
                 let bucketName, key;
                 
                 // Handle different S3 URL formats
                 if (resumeUrl.includes('amazonaws.com')) {
                     const url = new URL(resumeUrl);
-                    if (url.hostname.includes('s3')) {
-                        // Format: https://bucket-name.s3.region.amazonaws.com/key
-                        bucketName = url.hostname.split('.')[0];
-                        key = url.pathname.substring(1);
-                    } else {
-                        // Format: https://s3.region.amazonaws.com/bucket-name/key
+                    
+                    // Format 1: https://bucket-name.s3.region.amazonaws.com/path/to/file.pdf
+                    if (url.hostname.startsWith('s3.') || url.hostname.includes('.s3.')) {
+                        // Path-style: https://s3.region.amazonaws.com/bucket-name/key
                         const pathParts = url.pathname.substring(1).split('/');
                         bucketName = pathParts[0];
                         key = pathParts.slice(1).join('/');
+                    } else if (url.hostname.endsWith('.amazonaws.com')) {
+                        // Virtual-hosted style: https://bucket-name.s3.region.amazonaws.com/key
+                        bucketName = url.hostname.split('.')[0];
+                        key = url.pathname.substring(1);
+                    } else {
+                        throw new Error(`Unsupported S3 URL format: ${resumeUrl}`);
                     }
                 } else {
-                    // Fallback: assume it's in the format bucket/key
-                    const parts = resumeUrl.split('/');
+                    // Use environment bucket with filename from URL
                     bucketName = process.env.S3_BUCKET_NAME || 'spotjobs-bucket-2025';
-                    key = parts[parts.length - 1];
+                    const urlParts = resumeUrl.split('/');
+                    key = urlParts[urlParts.length - 1];
                 }
+                
+                // Validate extracted values
+                console.log('🔍 S3 URL parsing result:', { 
+                    originalUrl: resumeUrl,
+                    extractedBucket: bucketName, 
+                    extractedKey: key,
+                    keyLength: key?.length || 0
+                });
                 
                 console.log('📄 Extracting text from resume:', { bucketName, key, originalUrl: resumeUrl });
                 
@@ -74,22 +97,65 @@ exports.handler = async (event) => {
                     ?.map(block => block.Text)
                     ?.join(' ') || '';
                 
+                // Log detailed Textract response
+                console.log('📄 Textract Response Details:', {
+                    totalBlocks: response.Blocks?.length || 0,
+                    lineBlocks: response.Blocks?.filter(block => block.BlockType === 'LINE')?.length || 0,
+                    wordBlocks: response.Blocks?.filter(block => block.BlockType === 'WORD')?.length || 0,
+                    pageBlocks: response.Blocks?.filter(block => block.BlockType === 'PAGE')?.length || 0
+                });
+                
                 if (extractedText.trim()) {
                     resumeText = extractedText;
                     textractUsed = true;
-                    console.log('✅ Textract extraction successful:', extractedText.length + ' characters');
+                    
+                    // Log comprehensive extracted text details
+                    console.log('✅ Textract extraction successful:', {
+                        characterCount: extractedText.length,
+                        wordCount: extractedText.split(/\s+/).length,
+                        lineCount: response.Blocks?.filter(block => block.BlockType === 'LINE')?.length || 0
+                    });
+                    
+                    // Log the full extracted text (truncated for readability)
+                    console.log('📝 EXTRACTED TEXT FROM PDF:');
+                    console.log('=' .repeat(80));
+                    console.log(extractedText);
+                    console.log('=' .repeat(80));
+                    
+                    // Log individual lines for better structure visibility
+                    const lines = response.Blocks
+                        ?.filter(block => block.BlockType === 'LINE')
+                        ?.map((block, index) => `Line ${index + 1}: ${block.Text}`) || [];
+                    
+                    if (lines.length > 0) {
+                        console.log('📋 EXTRACTED LINES BREAKDOWN:');
+                        console.log('-'.repeat(50));
+                        lines.forEach(line => console.log(line));
+                        console.log('-'.repeat(50));
+                    }
+                    
                 } else {
                     console.log('⚠️ Textract returned empty text');
+                    console.log('🔍 Raw Textract response:', JSON.stringify(response, null, 2));
                 }
             } catch (error) {
                 console.log('⚠️ Textract failed:', {
                     error: error.message,
                     code: error.code,
-                    resumeUrl
+                    stack: error.stack,
+                    resumeUrl,
+                    bucketName,
+                    key
                 });
+                console.log('🔍 Full error object:', JSON.stringify(error, null, 2));
             }
         } else {
-            console.log('📄 No PDF resume URL provided or invalid format:', resumeUrl);
+            console.log('📄 Skipping Textract - URL not suitable for processing:', {
+                resumeUrl,
+                reason: !resumeUrl ? 'No URL provided' : 
+                       !isS3Url && !hasPdfExtension ? 'Not S3 URL and no PDF extension' :
+                       'Unknown reason'
+            });
         }
         
         // High-precision scoring calculation
