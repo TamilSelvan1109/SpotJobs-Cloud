@@ -3,10 +3,6 @@ import User from "../models/User.js";
 
 export const isAuthenticated = async (req, res, next) => {
   
-  console.log(`🔐 Auth check for: ${req.method} ${req.originalUrl}`);
-  console.log('📧 Cookies:', req.cookies);
-  console.log('📋 Headers:', req.headers.authorization);
-  
   let token;
   
   // Prioritize Authorization header over cookies

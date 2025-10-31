@@ -593,10 +593,10 @@ export const updateUserResume = async (req, res) => {
 // Update application score from Lambda
 export const updateApplicationScore = async (req, res) => {
   try {
-    const { applicationId, score, error, errorMessage } = req.body;
+    const { applicationId, score, scoringDetails, error, errorMessage } = req.body;
     
     if (error) {
-      console.error('Lambda scoring error:', {
+      console.error('❌ Lambda scoring error:', {
         applicationId,
         errorMessage,
         timestamp: new Date().toISOString()
@@ -604,38 +604,57 @@ export const updateApplicationScore = async (req, res) => {
       return res.json({ success: false, message: "Scoring failed", error: errorMessage });
     }
     
-    console.log('Resume scoring completed:', {
-      applicationId,
-      finalScore: score + '%',
-      timestamp: new Date().toISOString()
-    });
+    console.log('\n🎯 ===== RESUME SCORING COMPLETED =====');
+    console.log('📋 Application ID:', applicationId);
+    console.log('🏆 Final Score:', score + '%');
+    console.log('⏰ Timestamp:', new Date().toISOString());
     
-    // Update application with only the score
+    if (scoringDetails) {
+      console.log('\n📊 DETAILED SCORING BREAKDOWN:');
+      console.log('  🎯 Skills Match:', `${scoringDetails.breakdown.skillsMatch.score}% (${scoringDetails.breakdown.skillsMatch.matched}/${scoringDetails.breakdown.skillsMatch.total} skills)`);
+      console.log('  📝 Description Match:', `${scoringDetails.breakdown.descriptionMatch.score}%`);
+      console.log('  👤 Role Match:', `${scoringDetails.breakdown.roleMatch.score}%`);
+      console.log('  📈 Experience Match:', `${scoringDetails.breakdown.experienceMatch.score}%`);
+      console.log('  📄 Resume Quality:', `${scoringDetails.breakdown.resumeQuality.score}%`);
+      
+      if (scoringDetails.matchedSkills?.length > 0) {
+        console.log('\n✅ MATCHED SKILLS:', scoringDetails.matchedSkills.join(', '));
+      }
+      
+      console.log('\n💡 RECOMMENDATION:', scoringDetails.recommendation);
+      console.log('📄 Textract Used:', scoringDetails.textractUsed ? 'Yes' : 'No');
+      console.log('📏 Resume Length:', scoringDetails.resumeTextLength + ' characters');
+    }
+    
+    console.log('\n=====================================\n');
+    
+    // Update application with score and details
     const application = await JobApplication.findByIdAndUpdate(
       applicationId,
-      { score },
+      { 
+        score,
+        scoringDetails: scoringDetails || null
+      },
       { new: true }
     );
     
     if (!application) {
-      console.error('Application not found:', applicationId);
+      console.error('❌ Application not found:', applicationId);
       return res.json({ success: false, message: "Application not found" });
     }
     
-    console.log('Application score updated:', {
-      applicationId,
-      score: score + '%'
-    });
+    console.log('💾 Application updated successfully in database');
     
     return res.json({ 
       success: true, 
-      message: "Score updated successfully",
+      message: "Score and details updated successfully",
       applicationId,
-      score
+      score,
+      recommendation: scoringDetails?.recommendation
     });
     
   } catch (error) {
-    console.error('Score update error:', error.message);
+    console.error('❌ Score update error:', error.message);
     return res.status(500).json({ success: false, message: error.message });
   }
 };

@@ -9,6 +9,10 @@ exports.handler = async (event) => {
     try {
         const { jobTitle, jobDescription, jobLevel, requiredSkills, userSkills, userBio, userRole, resumeUrl, applicationId, backendUrl } = JSON.parse(event.body);
         
+        // Use environment variable as fallback for backend URL
+        const finalBackendUrl = backendUrl || process.env.BACKEND_URL || 'http://localhost:5000';
+        console.log('🔗 Using backend URL:', finalBackendUrl);
+        
         let resumeText = userBio || '';
         let textractUsed = false;
         
@@ -76,12 +80,24 @@ exports.handler = async (event) => {
             recommendation: getRecommendation(scoringResult.score)
         });
         
-        // Send only score to backend
-        await axios.post(`${backendUrl}/api/users/update-application-score`, {
+        // Send detailed scoring results to backend
+        console.log('📤 Sending score to backend:', finalBackendUrl);
+        const backendResponse = await axios.post(`${finalBackendUrl}/api/users/update-application-score`, {
             applicationId,
-            score: scoringResult.score
+            score: scoringResult.score,
+            scoringDetails: {
+                breakdown: scoringResult.breakdown,
+                matchedSkills: scoringResult.matchedSkills,
+                textractUsed,
+                resumeTextLength: resumeText.length,
+                recommendation: getRecommendation(scoringResult.score)
+            }
         });
         
+        console.log('✅ Backend response:', {
+            status: backendResponse.status,
+            data: backendResponse.data
+        });
         console.log('✅ Score sent to backend successfully');
         
         return { statusCode: 200, body: JSON.stringify({ success: true, score: scoringResult.score }) };
@@ -90,12 +106,15 @@ exports.handler = async (event) => {
         
         try {
             const { applicationId, backendUrl } = JSON.parse(event.body);
+            const finalBackendUrl = backendUrl || process.env.BACKEND_URL || 'http://localhost:5000';
             console.error('❌ Scoring failed for application:', applicationId, 'Error:', error.message);
-            await axios.post(`${backendUrl}/api/users/update-application-score`, {
+            console.log('📤 Sending error to backend:', finalBackendUrl);
+            const errorResponse = await axios.post(`${finalBackendUrl}/api/users/update-application-score`, {
                 applicationId,
                 error: true,
                 errorMessage: error.message
             });
+            console.log('📥 Error response from backend:', errorResponse.data);
         } catch (e) {
             console.error('Failed to send error to backend:', e.message);
         }

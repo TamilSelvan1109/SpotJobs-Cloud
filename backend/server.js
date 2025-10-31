@@ -29,9 +29,6 @@ app.use(cookieParser());
 // Allow Lambda function calls without CORS restrictions
 app.use('/api/users/update-application-score', cors({ origin: true }));
 
-// Direct route for Lambda callback
-app.patch("/api/users/update-application-score", updateApplicationScore);
-
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/company", companyRoutes);
