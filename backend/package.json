@@ -8,7 +8,8 @@
     "start": "node server.js",
     "server": "nodemon server.js",
     "dev": "nodemon server.js",
-    "build": "npm install"
+    "build": "npm install",
+    "test:api:dummy": "node test-api-dummy-data.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.0.0",

@@ -466,7 +466,7 @@ export const applyForJob = async (req, res) => {
       date: Date.now(),
     });
 
-    // Trigger Lambda function for resume scoring
+    // Trigger high-precision Lambda scoring
     try {
       const lambdaPayload = {
         jobTitle: jobData.title,
@@ -484,42 +484,41 @@ export const applyForJob = async (req, res) => {
         backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
       };
 
-      console.log('Triggering Lambda with detailed payload:', {
+      console.log('Triggering high-precision Lambda scoring:', {
         applicationId: application._id.toString(),
-        jobDescription: jobData.description ? `${jobData.description.substring(0, 100)}...` : 'NO DESCRIPTION',
-        requiredSkills: jobData.skills || 'NO SKILLS',
-        userSkills: userData.profile?.skills || 'NO USER SKILLS',
-        userBio: userData.profile?.bio ? `${userData.profile.bio.substring(0, 50)}...` : 'NO BIO',
+        jobTitle: jobData.title,
+        hasDescription: !!jobData.description,
+        requiredSkillsCount: (jobData.skills || []).length,
+        userSkillsCount: (userData.profile?.skills || []).length,
+        hasBio: !!userData.profile?.bio,
         hasResume: !!userData.profile?.resume,
-        resumeUrl: userData.profile?.resume || 'NO RESUME',
-        backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
+        jobLevel: jobData.level,
+        userRole: userData.profile?.role
       });
 
       const command = new InvokeCommand({
         FunctionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
         Payload: JSON.stringify({ body: JSON.stringify(lambdaPayload) }),
-        InvocationType: 'Event' // Async invocation
+        InvocationType: 'Event'
       });
 
       const result = await lambdaClient.send(command);
       
-      console.log('🚀 Lambda invoked successfully:', {
+      console.log('High-precision Lambda invoked:', {
         statusCode: result.StatusCode,
         applicationId: application._id.toString(),
-        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
-        payload: JSON.stringify(lambdaPayload).substring(0, 200) + '...'
+        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring'
       });
       
-      // Wait a moment to see if Lambda responds
-      setTimeout(() => {
-        console.log('⏰ Waiting for Lambda callback...');
-      }, 2000);
     } catch (lambdaError) {
-      console.error('Lambda invocation error:', lambdaError);
-      // Don't fail the application if Lambda fails
+      console.error('Lambda invocation failed:', lambdaError.message);
     }
 
-    res.json({ success: true, message: "Applied Successfully" });
+    res.json({ 
+      success: true, 
+      message: "Applied Successfully - High-precision scoring in progress",
+      applicationId: application._id.toString()
+    });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
@@ -594,38 +593,24 @@ export const updateUserResume = async (req, res) => {
 // Update application score from Lambda
 export const updateApplicationScore = async (req, res) => {
   try {
-    const { applicationId, score, error, errorDetails, details, processingInfo } = req.body;
+    const { applicationId, score, error, errorMessage } = req.body;
     
     if (error) {
-      console.error('❌ Lambda scoring error received:', {
+      console.error('Lambda scoring error:', {
         applicationId,
-        errorType: errorDetails?.errorType,
-        errorMessage: errorDetails?.errorMessage,
-        timestamp: errorDetails?.timestamp
+        errorMessage,
+        timestamp: new Date().toISOString()
       });
-      return res.json({ success: false, message: "Scoring failed", errorDetails });
+      return res.json({ success: false, message: "Scoring failed", error: errorMessage });
     }
     
-    console.log('✅ Lambda scoring success:', { applicationId, score });
+    console.log('Resume scoring completed:', {
+      applicationId,
+      finalScore: score + '%',
+      timestamp: new Date().toISOString()
+    });
     
-    if (processingInfo?.textract?.extractedText) {
-      console.log('📄 Textract Extracted Text:', {
-        source: processingInfo.textract.source,
-        textLength: processingInfo.textract.textLength,
-        extractedContent: processingInfo.textract.extractedText.substring(0, 500) + '...'
-      });
-    }
-    
-    if (details) {
-      console.log('📊 Detailed scoring breakdown:', {
-        skillsMatch: `${details.skillsMatch.score}% (${details.skillsMatch.matched}/${details.skillsMatch.total})`,
-        descriptionMatch: `${details.descriptionMatch.score}%`,
-        experienceMatch: `${details.experienceMatch.score}%`,
-        roleMatch: `${details.roleMatch.score}%`,
-        recommendation: details.recommendation
-      });
-    }
-    
+    // Update application with only the score
     const application = await JobApplication.findByIdAndUpdate(
       applicationId,
       { score },
@@ -633,15 +618,25 @@ export const updateApplicationScore = async (req, res) => {
     );
     
     if (!application) {
-      console.log('❌ Application not found:', applicationId);
+      console.error('Application not found:', applicationId);
       return res.json({ success: false, message: "Application not found" });
     }
     
-    console.log('✅ Score updated in database:', { applicationId, score });
-    res.json({ success: true, message: "Score updated successfully" });
+    console.log('Application score updated:', {
+      applicationId,
+      score: score + '%'
+    });
+    
+    return res.json({ 
+      success: true, 
+      message: "Score updated successfully",
+      applicationId,
+      score
+    });
+    
   } catch (error) {
-    console.error('❌ Score update error:', error);
-    res.json({ success: false, message: error.message });
+    console.error('Score update error:', error.message);
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 

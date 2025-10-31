@@ -12,7 +12,6 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-textract": "^3.920.0",
-    "aws-sdk": "^2.1692.0",
     "axios": "^1.13.1"
   }
 }
