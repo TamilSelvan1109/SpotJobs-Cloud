@@ -5,25 +5,64 @@ const textract = new TextractClient({ region: process.env.AWS_REGION || 'ap-sout
 
 exports.handler = async (event) => {
     console.log('🚀 High-precision resume scoring started');
+    console.log('📥 Event received:', JSON.stringify(event, null, 2));
     
     try {
-        const { jobTitle, jobDescription, jobLevel, requiredSkills, userSkills, userBio, userRole, resumeUrl, applicationId, backendUrl } = JSON.parse(event.body);
+        const eventBody = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+        const { jobTitle, jobDescription, jobLevel, requiredSkills, userSkills, userBio, userRole, resumeUrl, applicationId, backendUrl } = eventBody;
+        
+        console.log('📋 Parsed payload:', {
+            jobTitle,
+            hasJobDescription: !!jobDescription,
+            jobLevel,
+            requiredSkillsCount: requiredSkills?.length || 0,
+            userSkillsCount: userSkills?.length || 0,
+            hasBio: !!userBio,
+            userRole,
+            resumeUrl,
+            applicationId,
+            backendUrl
+        });
         
         // Use environment variable as fallback for backend URL
         const finalBackendUrl = backendUrl || process.env.BACKEND_URL || 'http://localhost:5000';
         console.log('🔗 Using backend URL:', finalBackendUrl);
+        console.log('🔍 AWS Configuration:', {
+            region: process.env.AWS_REGION,
+            hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+            hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
+            bucketName: process.env.S3_BUCKET_NAME
+        });
         
         let resumeText = userBio || '';
         let textractUsed = false;
         
         // Extract text from resume using Textract if PDF URL provided
-        if (resumeUrl && resumeUrl.includes('.pdf')) {
+        if (resumeUrl && (resumeUrl.includes('.pdf') || resumeUrl.includes('.PDF'))) {
             try {
-                const url = new URL(resumeUrl);
-                const bucketName = url.hostname.split('.')[0];
-                const key = url.pathname.substring(1);
+                let bucketName, key;
                 
-                console.log('📄 Extracting text from resume:', { bucketName, key });
+                // Handle different S3 URL formats
+                if (resumeUrl.includes('amazonaws.com')) {
+                    const url = new URL(resumeUrl);
+                    if (url.hostname.includes('s3')) {
+                        // Format: https://bucket-name.s3.region.amazonaws.com/key
+                        bucketName = url.hostname.split('.')[0];
+                        key = url.pathname.substring(1);
+                    } else {
+                        // Format: https://s3.region.amazonaws.com/bucket-name/key
+                        const pathParts = url.pathname.substring(1).split('/');
+                        bucketName = pathParts[0];
+                        key = pathParts.slice(1).join('/');
+                    }
+                } else {
+                    // Fallback: assume it's in the format bucket/key
+                    const parts = resumeUrl.split('/');
+                    bucketName = process.env.S3_BUCKET_NAME || 'spotjobs-bucket-2025';
+                    key = parts[parts.length - 1];
+                }
+                
+                console.log('📄 Extracting text from resume:', { bucketName, key, originalUrl: resumeUrl });
                 
                 const command = new DetectDocumentTextCommand({
                     Document: { S3Object: { Bucket: bucketName, Name: key } }
@@ -31,18 +70,26 @@ exports.handler = async (event) => {
                 
                 const response = await textract.send(command);
                 const extractedText = response.Blocks
-                    .filter(block => block.BlockType === 'LINE')
-                    .map(block => block.Text)
-                    .join(' ');
+                    ?.filter(block => block.BlockType === 'LINE')
+                    ?.map(block => block.Text)
+                    ?.join(' ') || '';
                 
                 if (extractedText.trim()) {
                     resumeText = extractedText;
                     textractUsed = true;
                     console.log('✅ Textract extraction successful:', extractedText.length + ' characters');
+                } else {
+                    console.log('⚠️ Textract returned empty text');
                 }
             } catch (error) {
-                console.log('⚠️ Textract failed, using bio only:', error.message);
+                console.log('⚠️ Textract failed:', {
+                    error: error.message,
+                    code: error.code,
+                    resumeUrl
+                });
             }
+        } else {
+            console.log('📄 No PDF resume URL provided or invalid format:', resumeUrl);
         }
         
         // High-precision scoring calculation
@@ -126,15 +173,24 @@ exports.handler = async (event) => {
 function calculateHighPrecisionScore({ jobTitle, jobDescription, jobLevel, requiredSkills, userSkills, userRole, resumeText, textractUsed }) {
     console.log('🔍 Starting comprehensive resume analysis...');
     
-    // Normalize and combine all candidate text
-    const fullText = (resumeText + ' ' + userRole + ' ' + (userSkills?.join(' ') || '')).toLowerCase();
-    const jobDesc = (jobDescription || '').toLowerCase();
+    // Normalize and combine all candidate text with better fallbacks
+    const safeResumeText = resumeText || '';
+    const safeUserRole = userRole || '';
+    const safeUserSkills = userSkills || [];
+    const safeJobDescription = jobDescription || '';
+    const safeRequiredSkills = requiredSkills || [];
+    
+    const fullText = (safeResumeText + ' ' + safeUserRole + ' ' + safeUserSkills.join(' ')).toLowerCase();
+    const jobDesc = safeJobDescription.toLowerCase();
     
     console.log('📝 Text analysis:', {
-        resumeLength: resumeText.length,
-        userSkillsCount: userSkills?.length || 0,
-        jobDescLength: jobDescription?.length || 0,
-        textractUsed
+        resumeLength: safeResumeText.length,
+        userSkillsCount: safeUserSkills.length,
+        jobDescLength: safeJobDescription.length,
+        requiredSkillsCount: safeRequiredSkills.length,
+        textractUsed,
+        hasUserRole: !!safeUserRole,
+        fullTextLength: fullText.length
     });
     
     let breakdown = {
@@ -147,20 +203,20 @@ function calculateHighPrecisionScore({ jobTitle, jobDescription, jobLevel, requi
     
     let matchedSkills = [];
     
-    // 1. ADVANCED SKILLS MATCHING (35% weight)
-    if (requiredSkills?.length) {
+    // 1. ADVANCED SKILLS MATCHING (35% weight) - More flexible scoring
+    if (safeRequiredSkills.length > 0) {
         console.log('🎯 Analyzing skills matching...');
-        const skillMatches = requiredSkills.map(skill => {
+        const skillMatches = safeRequiredSkills.map(skill => {
             const skillLower = skill.toLowerCase();
             const skillVariations = generateSkillVariations(skillLower);
             
             // Check in user skills with fuzzy matching
-            const inUserSkills = userSkills?.some(us => {
+            const inUserSkills = safeUserSkills.some(us => {
                 const userSkillLower = us.toLowerCase();
                 return skillVariations.some(variation => 
                     userSkillLower.includes(variation) || 
                     variation.includes(userSkillLower) ||
-                    levenshteinSimilarity(userSkillLower, variation) > 0.8
+                    levenshteinSimilarity(userSkillLower, variation) > 0.7 // More lenient
                 );
             });
             
@@ -188,52 +244,90 @@ function calculateHighPrecisionScore({ jobTitle, jobDescription, jobLevel, requi
         });
         
         breakdown.skillsMatch.matched = matchedSkills.length;
-        breakdown.skillsMatch.total = requiredSkills.length;
-        breakdown.skillsMatch.score = Math.round((skillMatches.reduce((a, b) => a + b, 0) / requiredSkills.length) * 100);
+        breakdown.skillsMatch.total = safeRequiredSkills.length;
+        breakdown.skillsMatch.score = Math.round((skillMatches.reduce((a, b) => a + b, 0) / safeRequiredSkills.length) * 100);
         
         console.log(`✅ Skills: ${breakdown.skillsMatch.matched}/${breakdown.skillsMatch.total} matched (${breakdown.skillsMatch.score}%)`);
+    } else {
+        // If no required skills, give partial credit based on user having any skills
+        breakdown.skillsMatch.score = safeUserSkills.length > 0 ? 50 : 25;
+        console.log(`⚠️ No required skills specified, giving base score: ${breakdown.skillsMatch.score}%`);
     }
     
-    // 2. ENHANCED JOB DESCRIPTION RELEVANCE (30% weight)
-    if (jobDesc && resumeText) {
+    // 2. ENHANCED JOB DESCRIPTION RELEVANCE (30% weight) - More flexible
+    if (jobDesc || fullText) {
         console.log('📋 Analyzing job description relevance...');
-        const jobKeywords = extractAdvancedKeywords(jobDesc);
-        const resumeKeywords = extractAdvancedKeywords(fullText);
         
-        // Weighted keyword matching
-        const keywordMatches = jobKeywords.map(keyword => {
-            const found = resumeKeywords.includes(keyword);
-            if (found) breakdown.descriptionMatch.matchedKeywords.push(keyword);
-            return found ? 1 : 0;
-        });
-        
-        breakdown.descriptionMatch.totalKeywords = jobKeywords.length;
-        breakdown.descriptionMatch.score = jobKeywords.length > 0 ? 
-            Math.round((keywordMatches.reduce((a, b) => a + b, 0) / jobKeywords.length) * 100) : 0;
+        if (jobDesc && fullText) {
+            const jobKeywords = extractAdvancedKeywords(jobDesc);
+            const resumeKeywords = extractAdvancedKeywords(fullText);
+            
+            // Weighted keyword matching with fuzzy matching
+            const keywordMatches = jobKeywords.map(keyword => {
+                const found = resumeKeywords.some(resumeKeyword => 
+                    resumeKeyword.includes(keyword) || 
+                    keyword.includes(resumeKeyword) ||
+                    levenshteinSimilarity(keyword, resumeKeyword) > 0.7
+                );
+                if (found) breakdown.descriptionMatch.matchedKeywords.push(keyword);
+                return found ? 1 : 0;
+            });
+            
+            breakdown.descriptionMatch.totalKeywords = jobKeywords.length;
+            breakdown.descriptionMatch.score = jobKeywords.length > 0 ? 
+                Math.round((keywordMatches.reduce((a, b) => a + b, 0) / jobKeywords.length) * 100) : 0;
+        } else if (jobDesc && !fullText) {
+            // Job description exists but no candidate text - give minimal score
+            breakdown.descriptionMatch.score = 15;
+            console.log('⚠️ Job description available but no candidate text for comparison');
+        } else if (!jobDesc && fullText) {
+            // No job description but candidate has text - give moderate score
+            breakdown.descriptionMatch.score = 40;
+            console.log('⚠️ No job description available but candidate has profile text');
+        } else {
+            // Neither available
+            breakdown.descriptionMatch.score = 25;
+            console.log('⚠️ No job description or candidate text available');
+        }
         
         console.log(`📊 Description match: ${breakdown.descriptionMatch.matchedKeywords.length}/${breakdown.descriptionMatch.totalKeywords} keywords (${breakdown.descriptionMatch.score}%)`);
     }
     
-    // 3. INTELLIGENT ROLE/TITLE MATCHING (20% weight)
-    if (jobTitle && userRole) {
+    // 3. INTELLIGENT ROLE/TITLE MATCHING (20% weight) - More flexible
+    if (jobTitle || safeUserRole) {
         console.log('👤 Analyzing role compatibility...');
-        const titleTerms = extractRoleTerms(jobTitle.toLowerCase());
-        const roleTerms = extractRoleTerms(userRole.toLowerCase());
         
-        const matches = titleTerms.filter(term => {
-            const found = roleTerms.some(roleTerm => 
-                roleTerm.includes(term) || 
-                term.includes(roleTerm) || 
-                levenshteinSimilarity(term, roleTerm) > 0.75
-            );
-            if (found) breakdown.roleMatch.matchedTerms.push(term);
-            return found;
-        });
-        
-        breakdown.roleMatch.score = titleTerms.length > 0 ? 
-            Math.round((matches.length / titleTerms.length) * 100) : 0;
-        
-        console.log(`🎭 Role match: ${matches.length}/${titleTerms.length} terms (${breakdown.roleMatch.score}%)`);
+        if (jobTitle && safeUserRole) {
+            const titleTerms = extractRoleTerms(jobTitle.toLowerCase());
+            const roleTerms = extractRoleTerms(safeUserRole.toLowerCase());
+            
+            const matches = titleTerms.filter(term => {
+                const found = roleTerms.some(roleTerm => 
+                    roleTerm.includes(term) || 
+                    term.includes(roleTerm) || 
+                    levenshteinSimilarity(term, roleTerm) > 0.6 // More lenient
+                );
+                if (found) breakdown.roleMatch.matchedTerms.push(term);
+                return found;
+            });
+            
+            breakdown.roleMatch.score = titleTerms.length > 0 ? 
+                Math.round((matches.length / titleTerms.length) * 100) : 0;
+                
+            console.log(`🎭 Role match: ${matches.length}/${titleTerms.length} terms (${breakdown.roleMatch.score}%)`);
+        } else if (jobTitle && !safeUserRole) {
+            // Job title exists but no user role - give base score
+            breakdown.roleMatch.score = 30;
+            console.log('⚠️ Job title available but no user role specified');
+        } else if (!jobTitle && safeUserRole) {
+            // No job title but user has role - give moderate score
+            breakdown.roleMatch.score = 45;
+            console.log('⚠️ No job title available but user has role specified');
+        } else {
+            // Neither available
+            breakdown.roleMatch.score = 35;
+            console.log('⚠️ No job title or user role available');
+        }
     }
     
     // 4. COMPREHENSIVE EXPERIENCE ANALYSIS (10% weight)
@@ -252,8 +346,8 @@ function calculateHighPrecisionScore({ jobTitle, jobDescription, jobLevel, requi
     
     console.log(`📈 Experience: Required ${breakdown.experienceMatch.requiredLevel}, Detected ${breakdown.experienceMatch.detectedLevel} (${breakdown.experienceMatch.score}%)`);
     
-    // 5. ADVANCED RESUME QUALITY ASSESSMENT (5% weight)
-    const qualityFactors = assessResumeQuality(resumeText, textractUsed, fullText);
+    // 5. ADVANCED RESUME QUALITY ASSESSMENT (5% weight) - More flexible
+    const qualityFactors = assessResumeQuality(safeResumeText, textractUsed, fullText, safeUserSkills, safeUserRole);
     breakdown.resumeQuality.factors = qualityFactors.factors;
     breakdown.resumeQuality.score = qualityFactors.score;
     
@@ -394,45 +488,73 @@ function detectAdvancedExperienceLevel(text, levelMap) {
     return detectedLevel;
 }
 
-// RESUME QUALITY ASSESSMENT
-function assessResumeQuality(resumeText, textractUsed, fullText) {
+// RESUME QUALITY ASSESSMENT - More flexible scoring
+function assessResumeQuality(resumeText, textractUsed, fullText, userSkills, userRole) {
     const factors = [];
     let score = 0;
     
-    // Length and completeness
+    // Length and completeness - more flexible
     if (resumeText.length > 1000) {
-        factors.push('Comprehensive content');
+        factors.push('Comprehensive resume content');
         score += 30;
     } else if (resumeText.length > 500) {
-        factors.push('Adequate content');
+        factors.push('Adequate resume content');
         score += 20;
+    } else if (resumeText.length > 100) {
+        factors.push('Basic resume content');
+        score += 15;
     } else {
-        factors.push('Limited content');
-        score += 10;
+        // No resume text, but check if user has profile info
+        if (userSkills?.length > 0 || userRole) {
+            factors.push('Profile information available');
+            score += 25;
+        } else {
+            factors.push('Limited profile information');
+            score += 10;
+        }
     }
     
     // Textract usage bonus
     if (textractUsed) {
         factors.push('PDF resume processed');
         score += 25;
+    } else if (resumeText.length === 0) {
+        // No resume but user might have filled profile
+        factors.push('No resume document');
+        score += 5;
     }
     
-    // Structure indicators
-    const structureKeywords = ['experience', 'education', 'skills', 'projects', 'work', 'employment', 'qualification'];
+    // Structure indicators - check in full profile text
+    const structureKeywords = ['experience', 'education', 'skills', 'projects', 'work', 'employment', 'qualification', 'developer', 'engineer'];
     const foundStructure = structureKeywords.filter(keyword => fullText.includes(keyword));
     if (foundStructure.length >= 4) {
-        factors.push('Well-structured');
+        factors.push('Well-structured profile');
         score += 25;
     } else if (foundStructure.length >= 2) {
-        factors.push('Basic structure');
+        factors.push('Basic profile structure');
         score += 15;
+    } else if (foundStructure.length >= 1) {
+        factors.push('Minimal profile structure');
+        score += 10;
     }
     
-    // Technical depth
-    const techTerms = fullText.match(/\b(?:api|database|framework|library|algorithm|architecture|deployment|testing|debugging)\b/gi) || [];
+    // Technical depth - more inclusive
+    const techTerms = fullText.match(/\b(?:api|database|framework|library|algorithm|architecture|deployment|testing|debugging|programming|coding|development|software|web|mobile|frontend|backend|fullstack)\b/gi) || [];
     if (techTerms.length >= 5) {
-        factors.push('Technical depth');
+        factors.push('Strong technical depth');
         score += 20;
+    } else if (techTerms.length >= 2) {
+        factors.push('Some technical content');
+        score += 10;
+    }
+    
+    // Skills bonus
+    if (userSkills?.length >= 5) {
+        factors.push('Multiple skills listed');
+        score += 15;
+    } else if (userSkills?.length >= 1) {
+        factors.push('Some skills listed');
+        score += 10;
     }
     
     return {

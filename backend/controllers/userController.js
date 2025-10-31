@@ -484,16 +484,32 @@ export const applyForJob = async (req, res) => {
         backendUrl: process.env.BACKEND_URL || 'http://localhost:5000'
       };
 
-      console.log('Triggering high-precision Lambda scoring:', {
+      console.log('\n🚀 ===== TRIGGERING LAMBDA SCORING =====');
+      console.log('📋 Application Details:', {
         applicationId: application._id.toString(),
         jobTitle: jobData.title,
-        hasDescription: !!jobData.description,
-        requiredSkillsCount: (jobData.skills || []).length,
-        userSkillsCount: (userData.profile?.skills || []).length,
-        hasBio: !!userData.profile?.bio,
-        hasResume: !!userData.profile?.resume,
         jobLevel: jobData.level,
-        userRole: userData.profile?.role
+        hasDescription: !!jobData.description,
+        descriptionLength: jobData.description?.length || 0,
+        requiredSkillsCount: (jobData.skills || []).length,
+        requiredSkills: jobData.skills || []
+      });
+      
+      console.log('👤 User Profile Details:', {
+        userId: userData._id.toString(),
+        userRole: userData.profile?.role || 'Not specified',
+        userSkillsCount: (userData.profile?.skills || []).length,
+        userSkills: userData.profile?.skills || [],
+        hasBio: !!userData.profile?.bio,
+        bioLength: userData.profile?.bio?.length || 0,
+        hasResume: !!userData.profile?.resume,
+        resumeUrl: userData.profile?.resume || 'No resume'
+      });
+      
+      console.log('🔗 Lambda Configuration:', {
+        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
+        backendUrl: process.env.BACKEND_URL || 'http://localhost:5000',
+        region: process.env.AWS_REGION
       });
 
       const command = new InvokeCommand({
@@ -504,11 +520,14 @@ export const applyForJob = async (req, res) => {
 
       const result = await lambdaClient.send(command);
       
-      console.log('High-precision Lambda invoked:', {
+      console.log('✅ Lambda invocation successful:', {
         statusCode: result.StatusCode,
         applicationId: application._id.toString(),
-        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring'
+        functionName: process.env.LAMBDA_FUNCTION_NAME || 'resumeScoring',
+        payload: result.Payload ? 'Present' : 'None'
       });
+      
+      console.log('=====================================\n');
       
     } catch (lambdaError) {
       console.error('Lambda invocation failed:', lambdaError.message);
